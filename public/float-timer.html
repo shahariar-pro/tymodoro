@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TYMODORO Timer</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23000' stroke='%23fff' stroke-width='3'/><circle cx='50' cy='50' r='20' fill='%23fff'/></svg>" type="image/svg+xml">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: "Inter", sans-serif;
+        }
+
+        body {
+            background: #000000;
+            color: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            width: 100vw;
+            padding: 1rem;
+        }
+
+        .timer-widget {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1.5rem;
+            text-align: center;
+        }
+
+        .timer-display {
+            font-size: 3.5rem;
+            font-weight: 900;
+            font-family: "Courier New", monospace;
+            letter-spacing: -0.05em;
+            color: #ffffff;
+            line-height: 1;
+        }
+
+        .session-label {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #cccccc;
+        }
+
+        .timer-controls {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .timer-btn {
+            width: 60px;
+            height: 60px;
+            border: none;
+            background: #ffffff;
+            color: #000000;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.3s ease;
+            font-weight: 600;
+        }
+
+        .timer-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .timer-btn:active {
+            transform: scale(0.95);
+        }
+
+        .info-text {
+            font-size: 0.875rem;
+            color: #888888;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="timer-widget">
+        <div class="session-label" id="sessionLabel">Deep Focus Session</div>
+        <div class="timer-display" id="timerDisplay">25:00</div>
+        
+        <div class="timer-controls">
+            <button class="timer-btn" onclick="toggleTimer()" title="Play/Pause">
+                <span id="playButtonText">▶</span>
+            </button>
+            <button class="timer-btn" onclick="skipSession()" title="Skip" style="background: #ef4444; color: white;">
+                ⊳⊳
+            </button>
+        </div>
+        
+        <div class="info-text">
+            Synced with main TYMODORO window
+        </div>
+    </div>
+
+    <script>
+        let timeLeft = 25 * 60;
+        let isRunning = false;
+        let timerInterval;
+        let startTime = null;
+        let pausedTime = 0;
+        let totalTime = 25 * 60;
+        let currentSession = "work";
+
+        function updateDisplay() {
+            const minutes = Math.floor(timeLeft / 60);
+            const seconds = timeLeft % 60;
+            const displayText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            document.getElementById("timerDisplay").textContent = displayText;
+        }
+
+        function toggleTimer() {
+            if (isRunning) {
+                clearInterval(timerInterval);
+                pausedTime += Date.now() - startTime;
+                isRunning = false;
+                updateButtonState();
+            } else {
+                startTime = Date.now();
+                timerInterval = setInterval(() => {
+                    const elapsed = Math.floor((Date.now() - startTime + pausedTime) / 1000);
+                    timeLeft = totalTime - elapsed;
+                    updateDisplay();
+
+                    if (timeLeft <= 0) {
+                        clearInterval(timerInterval);
+                        isRunning = false;
+                        updateButtonState();
+                        pausedTime = 0;
+                        // Notify main window
+                        window.opener?.postMessage({ type: 'sessionComplete' }, '*');
+                    }
+                }, 100);
+                isRunning = true;
+                updateButtonState();
+            }
+        }
+
+        function updateButtonState() {
+            const playBtn = document.querySelector('.timer-btn');
+            playBtn.textContent = isRunning ? '⏸' : '▶';
+        }
+
+        function skipSession() {
+            clearInterval(timerInterval);
+            isRunning = false;
+            updateButtonState();
+            window.opener?.postMessage({ type: 'skipSession' }, '*');
+        }
+
+        // Listen for messages from main window
+        window.addEventListener('message', (event) => {
+            const data = event.data;
+            
+            if (data.type === 'updateTimer') {
+                timeLeft = data.timeLeft;
+                totalTime = data.totalTime;
+                currentSession = data.currentSession;
+                isRunning = data.isRunning;
+                
+                const labels = {
+                    work: 'Deep Focus Session',
+                    shortBreak: 'Quick Recharge',
+                    longBreak: 'Extended Break'
+                };
+                
+                document.getElementById('sessionLabel').textContent = labels[currentSession] || 'Deep Focus Session';
+                updateDisplay();
+                updateButtonState();
+            }
+        });
+
+        // Initial display
+        updateDisplay();
+        
+        // Request initial state from main window
+        window.opener?.postMessage({ type: 'requestSync' }, '*');
+    </script>
+</body>
+</html>
