@@ -1530,7 +1530,27 @@ body {
   display: none !important;
 }
 
-/* Responsive design improvements for split-screen and mobile */
+/* Improved responsive design for split-screen and all screen sizes */
+@media (max-width: 1440px) {
+  .main-content.with-todos,
+  .main-content.with-calendar {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+
+  .todo-section,
+  .calendar-section {
+    order: 2;
+    max-height: 50vh;
+    min-width: auto;
+    max-width: none;
+  }
+
+  .timer-section {
+    order: 1;
+  }
+}
+
 @media (max-width: 1024px) {
   .main-content.with-todos,
   .main-content.with-calendar {
@@ -1666,29 +1686,19 @@ body {
   }
 }
 
-@media (max-width: 480px) {
-  .header {
-    padding: 0.75rem;
-  }
-
+@media (max-width: 640px) {
   .main-content {
     padding: 0.75rem;
     gap: 0.75rem;
   }
 
   .timer-time {
-    font-size: 2rem;
+    font-size: 2.2rem;
   }
 
   .progress-ring {
-    width: 200px;
-    height: 200px;
-  }
-
-  .play-btn {
-    width: 55px;
-    height: 55px;
-    font-size: 18px;
+    width: 220px;
+    height: 220px;
   }
 
   .modal {
@@ -1717,12 +1727,85 @@ body {
     width: calc(100vw - 2rem);
     left: 1rem;
     right: 1rem;
-    transform: translate(-50%, -50%);
   }
 
   .floating-widget {
     width: 160px;
     font-size: 0.9rem;
+    bottom: 70px;
+  }
+
+  .icon-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .logo {
+    font-size: 1.25rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .header {
+    padding: 0.75rem;
+  }
+
+  .main-content {
+    padding: 0.75rem;
+  }
+
+  .timer-time {
+    font-size: 2rem;
+  }
+
+  .progress-ring {
+    width: 200px;
+    height: 200px;
+  }
+
+  .play-btn {
+    width: 55px;
+    height: 55px;
+    font-size: 18px;
+  }
+
+  .modal {
+    padding: 1.25rem;
+    margin: 0.5rem;
+  }
+
+  .session-label {
+    margin-bottom: 1.5rem;
+    font-size: 0.95rem;
+  }
+
+  .todo-section,
+  .calendar-section {
+    padding: 0.75rem;
+    max-height: 35vh;
+  }
+
+  .white-noise-controls {
+    width: calc(100vw - 2rem);
+    left: 1rem;
+    right: 1rem;
+  }
+
+  .theme-selector {
+    width: calc(100vw - 2rem);
+    left: 1rem;
+    right: 1rem;
+  }
+
+  .floating-widget {
+    width: 150px;
+    font-size: 0.85rem;
+    bottom: 60px;
+    right: 5px;
+  }
+
+  .floating-timer-display {
+    font-size: 1.5rem;
   }
 
   .icon-btn {
