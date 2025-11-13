@@ -26,10 +26,11 @@ let floatingWidgetVisible = false
 const floatingWidgetX = 0
 const floatingWidgetY = 0
 let isDraggingWidget = false
-let dragOffsetX = 0
-let dragOffsetY = 0
+const dragOffsetX = 0
+const dragOffsetY = 0
 let calendarVisible = false
 const currentDate = new Date()
+let floatingWindow = null // Add floating window reference and management
 
 const sessionData = {
   startTime: null,
@@ -214,6 +215,7 @@ function updateThemeSelector() {
 }
 
 function showThemeSelector() {
+  closeAllPanels()
   document.getElementById("themeSelector").style.display = "block"
 }
 
@@ -530,6 +532,7 @@ async function toggleTimer() {
     }, 100)
     setIsRunning(true)
   }
+  updateFloatingWindow() // Sync after state change
 }
 
 function setIsRunning(running) {
@@ -604,6 +607,7 @@ function setSession(session) {
     sessionLabel.textContent = "Extended Break"
   }
   updateDisplay()
+  updateFloatingWindow() // Sync after session change
 }
 
 function resetTimer() {
@@ -656,6 +660,7 @@ function updateDisplay() {
   const circumference = 2 * Math.PI * 45
   const offset = circumference - (progress / 100) * circumference
   document.getElementById("progressCircle").style.strokeDashoffset = offset
+  updateFloatingWindow() // Sync timer state with floating window
 }
 
 // Sound Functions
@@ -699,6 +704,8 @@ function toggleSound() {
 
 // Modal Functions
 function showStats() {
+  closeAllPanels()
+
   const completedTodos = todos.filter((t) => t.completed).length
   const totalTodos = todos.length
 
@@ -739,6 +746,8 @@ function showStats() {
 }
 
 function showSettings() {
+  closeAllPanels()
+
   document.getElementById("modalTitle").textContent = "Settings"
   document.getElementById("modalContent").innerHTML = `
     <div class="setting-group">
@@ -767,6 +776,8 @@ function showSettings() {
 }
 
 function showAbout() {
+  closeAllPanels()
+
   document.getElementById("modalTitle").textContent = "About"
   document.getElementById("modalContent").innerHTML = `
     <div class="about-content">
@@ -860,24 +871,36 @@ function setupFloatingWidgetDrag() {
   const widget = document.getElementById("floatingWidget")
   const handle = widget.querySelector(".floating-widget-header")
 
+  let startX = 0
+  let startY = 0
+
+  handle.style.cursor = "grab"
   handle.addEventListener("mousedown", (e) => {
     isDraggingWidget = true
-    dragOffsetX = e.clientX - widget.offsetLeft
-    dragOffsetY = e.clientY - widget.offsetTop
+    startX = e.clientX - widget.getBoundingClientRect().left
+    startY = e.clientY - widget.getBoundingClientRect().top
+    handle.style.cursor = "grabbing"
     widget.style.transition = "none"
   })
 
   document.addEventListener("mousemove", (e) => {
     if (isDraggingWidget) {
+      const newX = e.clientX - startX
+      const newY = e.clientY - startY
+
+      const maxX = window.innerWidth - widget.offsetWidth
+      const maxY = window.innerHeight - widget.offsetHeight
+
       widget.style.right = "auto"
-      widget.style.left = e.clientX - dragOffsetX + "px"
       widget.style.bottom = "auto"
-      widget.style.top = e.clientY - dragOffsetY + "px"
+      widget.style.left = Math.max(0, Math.min(newX, maxX)) + "px"
+      widget.style.top = Math.max(0, Math.min(newY, maxY)) + "px"
     }
   })
 
   document.addEventListener("mouseup", () => {
     isDraggingWidget = false
+    handle.style.cursor = "grab"
     widget.style.transition = "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
   })
 }
@@ -1077,6 +1100,7 @@ function toggleWhiteNoise() {
   const btn = document.getElementById("whiteNoiseBtn")
 
   if (controls.style.display === "none" || !controls.style.display) {
+    closeAllPanels()
     controls.style.display = "block"
     btn.classList.add("active")
   } else {
@@ -1430,3 +1454,52 @@ function generateBinauralBeat(frequency) {
     },
   }
 }
+
+function closeAllPanels() {
+  document.getElementById("themeSelector").style.display = "none"
+  document.getElementById("whiteNoiseControls").style.display = "none"
+  document.getElementById("modalOverlay").style.display = "none"
+  document.getElementById("skipModalOverlay").style.display = "none"
+}
+
+function openFloatingWindow() {
+  const width = 380
+  const height = 480
+  const left = window.screenX + (window.outerWidth - width) / 2
+  const top = window.screenY + (window.outerHeight - height) / 2
+
+  floatingWindow = window.open(
+    "float-timer.html",
+    "TYMODOROTimer",
+    `width=${width},height=${height},left=${left},top=${top},resizable=yes,menubar=no,toolbar=no,location=no,status=no`,
+  )
+
+  if (!floatingWindow) {
+    alert("Could not open floating timer. Make sure pop-ups are enabled.")
+  }
+}
+
+function updateFloatingWindow() {
+  if (floatingWindow && !floatingWindow.closed) {
+    floatingWindow.postMessage(
+      {
+        type: "updateTimer",
+        timeLeft: timeLeft,
+        totalTime: totalTime,
+        currentSession: currentSession,
+        isRunning: isRunning,
+      },
+      "*",
+    )
+  }
+}
+
+window.addEventListener("message", (event) => {
+  if (event.data.type === "sessionComplete") {
+    completeSession()
+  } else if (event.data.type === "skipSession") {
+    skipSession()
+  } else if (event.data.type === "requestSync") {
+    updateFloatingWindow()
+  }
+})
