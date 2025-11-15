@@ -465,6 +465,7 @@ function addSubtask(parentId) {
     const todos = getTodosForCurrentDate()
     const parentTodo = todos.find(t => t.id === parentId)
     if (parentTodo) {
+        if (!parentTodo.subtasks) parentTodo.subtasks = []; // Ensure subtasks array exists
         parentTodo.subtasks.push(subtask)
         saveTodos()
         renderTodos() // Re-render to show new subtask
@@ -474,7 +475,7 @@ function addSubtask(parentId) {
 function toggleSubtask(parentId, subtaskId) {
     const todos = getTodosForCurrentDate()
     const parentTodo = todos.find(t => t.id === parentId)
-    if (parentTodo) {
+    if (parentTodo && parentTodo.subtasks) {
         const subtask = parentTodo.subtasks.find(st => st.id === subtaskId)
         if (subtask) {
             subtask.completed = !subtask.completed
@@ -487,7 +488,7 @@ function toggleSubtask(parentId, subtaskId) {
 function deleteSubtask(parentId, subtaskId) {
     const todos = getTodosForCurrentDate()
     const parentTodo = todos.find(t => t.id === parentId)
-    if (parentTodo) {
+    if (parentTodo && parentTodo.subtasks) {
         parentTodo.subtasks = parentTodo.subtasks.filter(st => st.id !== subtaskId)
         saveTodos()
         renderTodos()
@@ -548,7 +549,7 @@ function renderTodos() {
 
   todoList.innerHTML = `
     <div class="completed-toggle" onclick="toggleCompletedVisibility()">
-      <input type: "checkbox" ${showCompleted ? "checked" : ""} readonly>
+      <input type="checkbox" ${showCompleted ? "checked" : ""} readonly>
       <label>Show completed tasks</label>
     </div>
     ${filteredTodos
@@ -563,7 +564,7 @@ function renderTodos() {
            ondrop="handleDrop(event)"
            ondragend="handleDragEnd(event)">
            
-        <div class="todo-item">
+        <div class="todo-item ${todo.completed ? "completed" : ""}">
           <div class="todo-priority-indicator ${todo.priority}"></div>
           <div class="todo-checkbox ${todo.completed ? "checked" : ""}" onclick="event.stopPropagation(); toggleTodo(${todo.id})">
             ${todo.completed ? '<i data-lucide="check"></i>' : ""}
@@ -604,7 +605,7 @@ function renderTodos() {
         </div>
         
         <div class="subtask-list">
-            ${todo.subtasks.map(st => `
+            ${(todo.subtasks || []).map(st => `
                 <div class="subtask-item ${st.completed ? 'completed' : ''}">
                     <div class="subtask-checkbox ${st.completed ? 'checked' : ''}" onclick="event.stopPropagation(); toggleSubtask(${todo.id}, ${st.id})">
                         ${st.completed ? '<i data-lucide="check" style="width: 12px; height: 12px;"></i>' : ''}
@@ -723,4 +724,977 @@ function completeSession() {
     }
   } else {
     const breakType = currentSession === "shortBreak" ? "Quick" : "Extended"
-    const breakTime = currentSession ===... truncated ...
+    const breakTime = currentSession === "shortBreak" ? settings.shortBreakTime : settings.longBreakTime
+    showNotification(
+      "TYMODORO",
+      `Great! You completed your ${breakTime}-minute ${breakType.toLowerCase()} recharge break!`,
+    )
+    setSession("work")
+  }
+  saveStats()
+  updateCalendarDisplay()
+}
+
+function setSession(session) {
+  currentSession = session
+  startTime = null
+  pausedTime = 0
+
+  if (session === "work") {
+    timeLeft = settings.focusTime * 60
+    totalTime = settings.focusTime * 60
+  } else if (session === "shortBreak") {
+    timeLeft = settings.shortBreakTime * 60
+    totalTime = settings.shortBreakTime * 60
+  } else {
+    timeLeft = settings.longBreakTime * 60
+    totalTime = settings.longBreakTime * 60
+  }
+  
+  updateSessionLabel() // Update label based on new session
+  updateDisplay()
+  updateFloatingWindow() // Sync after session change
+}
+
+function resetTimer() {
+  clearInterval(timerInterval)
+  setIsRunning(false)
+  setSession(currentSession)
+}
+
+function skipSession() {
+  const percentComplete = ((totalTime - timeLeft) / totalTime) * 100
+
+  if (currentSession === "work" && percentComplete < 90) {
+    // Show confirmation modal
+    document.getElementById("sessionPercent").textContent = Math.round(percentComplete)
+    document.getElementById("skipModalOverlay").style.display = "flex"
+  } else {
+    // Session meets threshold or is a break, skip directly
+    clearInterval(timerInterval)
+    setIsRunning(false)
+    completeSession()
+  }
+}
+
+function handleSkipConfirm(event) {
+  if (event && event.target !== event.currentTarget) return
+  cancelSkip()
+}
+
+function confirmSkip() {
+  document.getElementById("skipModalOverlay").style.display = "none"
+  clearInterval(timerInterval)
+  setIsRunning(false)
+  // Session skipped without counting
+  setSession(currentSession)
+}
+
+function cancelSkip() {
+  document.getElementById("skipModalOverlay").style.display = "none"
+}
+
+function updateDisplay() {
+  const minutes = Math.floor(timeLeft / 60)
+  const seconds = timeLeft % 60
+  const displayText = `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
+
+  document.getElementById("timerDisplay").textContent = displayText
+  
+  if (floatingWidgetVisible) {
+      document.getElementById("floatingTimerTime").textContent = displayText
+  }
+
+  const progress = ((totalTime - timeLeft) / totalTime) * 100
+  const circumference = 2 * Math.PI * 45
+  const offset = circumference - (progress / 100) * circumference
+  document.getElementById("progressCircle").style.strokeDashoffset = offset
+  updateFloatingWindow() // Sync timer state with floating window
+}
+
+// Sound Functions
+function playBeep(frequency = 800, duration = 500) {
+  if (!soundEnabled || !audioContext) return
+
+  try {
+    const oscillator = audioContext.createOscillator()
+    const gainNode = audioContext.createGain()
+
+    oscillator.connect(gainNode)
+    gainNode.connect(audioContext.destination)
+
+    oscillator.frequency.value = frequency
+    oscillator.type = "sine"
+
+    gainNode.gain.setValueAtTime(0.3, audioContext.currentTime)
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000)
+
+    oscillator.start(audioContext.currentTime)
+    oscillator.stop(audioContext.currentTime + duration / 1000)
+  } catch (error) {
+    console.error("Error playing beep:", error)
+  }
+}
+
+function toggleSound() {
+  soundEnabled = !soundEnabled
+  const indicator = document.getElementById("soundIndicator")
+  const icon = indicator.querySelector("i")
+
+  if (soundEnabled) {
+    indicator.classList.remove("muted")
+    icon.setAttribute("data-lucide", "bell")
+  } else {
+    indicator.classList.add("muted")
+    icon.setAttribute("data-lucide", "bell-off")
+  }
+  lucide.createIcons()
+}
+
+// Modal Functions
+function showStats() {
+  closeAllPanels()
+  
+  const todos = getTodosForCurrentDate()
+  const completedTodos = todos.filter((t) => t.completed).length
+  const totalTodos = todos.length
+
+  document.getElementById("modalTitle").textContent = "Statistics"
+  document.getElementById("modalContent").innerHTML = `
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number">${stats.totalSessions}</div>
+        <div class="stat-label">Total Sessions</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">${stats.weekSessions}</div>
+        <div class="stat-label">This Week</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number">${stats.monthSessions}</div>
+        <div class="stat-label">This Month</div>
+      </div>
+      <div class="stat-card">
+        <i data-lucide="clock" style="margin: 0 auto 0.5rem; display: block; width: 20px; height: 20px;"></i>
+        <div class="stat-number">${stats.totalMinutes}</div>
+        <div class="stat-label">Total Minutes</div>
+      </div>
+      <div class="stat-card">
+        <i data-lucide="check-square" style="margin: 0 auto 0.5rem; display: block; width: 20px; height: 20px;"></i>
+        <div class="stat-number">${completedTodos}</div>
+        <div class="stat-label">Tasks Completed (${currentCalendarDate.toLocaleDateString('en-US', {month: 'short', day:'numeric'})})</div>
+      </div>
+      <div class="stat-card">
+        <i data-lucide="list-todo" style="margin: 0 auto 0.5rem; display: block; width: 20px; height: 20px;"></i>
+        <div class="stat-number">${totalTodos}</div>
+        <div class="stat-label">Total Tasks (${currentCalendarDate.toLocaleDateString('en-US', {month: 'short', day:'numeric'})})</div>
+      </div>
+    </div>
+  `
+  document.getElementById("modalOverlay").style.display = "flex"
+  lucide.createIcons()
+}
+
+function showSettings() {
+  closeAllPanels()
+
+  document.getElementById("modalTitle").textContent = "Settings"
+  document.getElementById("modalContent").innerHTML = `
+    <div class="setting-group">
+      <label class="setting-label" id="focusLabel">Focus Session: ${settings.focusTime} minutes</label>
+      <input type="range" class="slider" min="1" max="60" value="${settings.focusTime}" 
+             oninput="updateSetting('focusTime', this.value)" id="focusSlider">
+    </div>
+    <div class="setting-group">
+      <label class="setting-label" id="shortBreakLabel">Quick Break: ${settings.shortBreakTime} minutes</label>
+      <input type="range" class="slider" min="1" max="30" value="${settings.shortBreakTime}" 
+             oninput="updateSetting('shortBreakTime', this.value)" id="shortBreakSlider">
+    </div>
+    <div class="setting-group">
+      <label class="setting-label" id="longBreakLabel">Extended Break: ${settings.longBreakTime} minutes</label>
+      <input type="range" class="slider" min="1" max="60" value="${settings.longBreakTime}" 
+             oninput="updateSetting('longBreakTime', this.value)" id="longBreakSlider">
+    </div>
+    <div class="setting-group">
+      <label class="setting-label" id="longBreakAfterLabel">Sessions until Extended Break: ${settings.longBreakAfter}</label>
+      <input type="range" class="slider" min="1" max="10" value="${settings.longBreakAfter}" 
+             oninput="updateSetting('longBreakAfter', this.value)" id="longBreakAfterSlider">
+    </div>
+    <button class="apply-btn" onclick="applySettings()">Apply Settings</button>
+  `
+  document.getElementById("modalOverlay").style.display = "flex"
+}
+
+function showAbout() {
+  closeAllPanels()
+
+  document.getElementById("modalTitle").textContent = "About"
+  document.getElementById("modalContent").innerHTML = `
+    <div class="about-content">
+      <h3>Created by Dewan Shahariar Hossen</h3>
+      <p>A passionate developer who believes in the power of focused work and mindful breaks. This Pomodoro timer is designed to help you achieve your goals with style and efficiency!</p>
+      
+      <div class="contact-links">
+        <a href="https://www.linkedin.com/in/dewan-shahariar" target="_blank" class="contact-link">
+          <i data-lucide="linkedin"></i>
+          LinkedIn Profile
+        </a>
+        <a href="mailto:shahariar.professional@gmail.com" class="contact-link">
+          <i data-lucide="mail"></i>
+          Email Me
+        </a>
+      </div>
+      
+      <div class="motivational-message">
+        <p>"Every great achievement starts with a single focused session. You've got this! Keep pushing forward, one Pomodoro at a time!"</p>
+      </div>
+    </div>
+  `
+  document.getElementById("modalOverlay").style.display = "flex"
+  lucide.createIcons()
+}
+
+function updateSetting(key, value) {
+  settings[key] = Number.parseInt(value)
+
+  const labelMap = {
+    focusTime: "focusLabel",
+    shortBreakTime: "shortBreakLabel",
+    longBreakTime: "longBreakLabel",
+    longBreakAfter: "longBreakAfterLabel",
+  }
+
+  const labelId = labelMap[key]
+  const label = document.getElementById(labelId)
+
+  if (label) {
+    const labelText = {
+      focusTime: "Focus Session",
+      shortBreakTime: "Quick Break",
+      longBreakTime: "Extended Break",
+      longBreakAfter: "Sessions until Extended Break",
+    }
+
+    const unit = key === "longBreakAfter" ? "" : " minutes"
+    label.textContent = `${labelText[key]}: ${value}${unit}`
+  }
+}
+
+function applySettings() {
+  saveSettings()
+  if (!isRunning) {
+    setSession(currentSession)
+  }
+  hideModal()
+}
+
+function hideModal(event) {
+  if (event && event.target !== event.currentTarget) return
+  document.getElementById("modalOverlay").style.display = "none"
+}
+
+function showFloatingWidget() {
+  floatingWidgetVisible = !floatingWidgetVisible
+  const widget = document.getElementById("floatingWidget")
+
+  if (floatingWidgetVisible) {
+    widget.classList.add("active")
+  } else {
+    widget.classList.remove("active")
+  }
+}
+
+function closeFloatingWidget() {
+  floatingWidgetVisible = false
+  document.getElementById("floatingWidget").classList.remove("active")
+}
+
+function toggleTimerFromWidget() {
+  toggleTimer()
+}
+
+function skipSessionFromWidget() {
+  skipSession()
+}
+
+function setupFloatingWidgetDrag() {
+  const widget = document.getElementById("floatingWidget")
+  const handle = widget.querySelector(".floating-widget-header")
+
+  let startX = 0
+  let startY = 0
+
+  handle.style.cursor = "grab"
+  handle.addEventListener("mousedown", (e) => {
+    isDraggingWidget = true
+    startX = e.clientX - widget.getBoundingClientRect().left
+    startY = e.clientY - widget.getBoundingClientRect().top
+    handle.style.cursor = "grabbing"
+    widget.style.transition = "none"
+  })
+
+  document.addEventListener("mousemove", (e) => {
+    if (isDraggingWidget) {
+      const newX = e.clientX - startX
+      const newY = e.clientY - startY
+
+      const maxX = window.innerWidth - widget.offsetWidth
+      const maxY = window.innerHeight - widget.offsetHeight
+
+      widget.style.right = "auto"
+      widget.style.bottom = "auto"
+      widget.style.left = Math.max(0, Math.min(newX, maxX)) + "px"
+      widget.style.top = Math.max(0, Math.min(newY, maxY)) + "px"
+    }
+  })
+
+  document.addEventListener("mouseup", () => {
+    isDraggingWidget = false
+    handle.style.cursor = "grab"
+    widget.style.transition = "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)"
+  })
+}
+
+// Keyboard shortcuts
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space" && !e.target.matches("input, textarea, .subtask-input")) {
+    e.preventDefault()
+    toggleTimer()
+  } else if (e.code === "KeyR" && !e.target.matches("input, textarea, .subtask-input")) {
+    e.preventDefault()
+    resetTimer()
+  } else if (e.code === "Escape") {
+    hideModal()
+    hideThemeSelector()
+    cancelEdit()
+  }
+})
+
+function handleVisibilityChange() {
+  isTabVisible = !document.hidden
+
+  if (isRunning) {
+    if (isTabVisible) {
+      const elapsed = Math.floor((Date.now() - startTime + pausedTime) / 1000)
+      timeLeft = totalTime - elapsed
+      updateDisplay()
+
+      if (timeLeft <= 0) {
+        clearInterval(timerInterval)
+        setIsRunning(false)
+        pausedTime = 0
+        playBeep(1000, 800)
+        completeSession()
+      }
+    }
+  }
+}
+
+function toggleCompletedVisibility() {
+  showCompleted = !showCompleted
+  renderTodos()
+  updateTodoProgress()
+}
+
+function startEdit(id) {
+  editingTodoId = id
+  renderTodos()
+  setTimeout(() => {
+    const input = document.getElementById(`editInput${id}`)
+    if (input) {
+      input.focus()
+      input.select()
+    }
+  }, 0)
+}
+
+function saveEdit(id) {
+  const input = document.getElementById(`editInput${id}`)
+  const newText = input.value.trim()
+
+  if (newText === "") {
+    cancelEdit()
+    return
+  }
+  
+  const todos = getTodosForCurrentDate()
+  const todo = todos.find((t) => t.id === id)
+  if (todo) {
+    todo.text = newText
+    saveTodos()
+    if (currentTaskId === id) {
+        updateSessionLabel() // Update timer label if edited task is selected
+    }
+  }
+
+  editingTodoId = null
+  renderTodos()
+}
+
+function cancelEdit() {
+  editingTodoId = null
+  renderTodos()
+}
+
+function handleEditKeydown(event, id) {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault()
+    saveEdit(id)
+  } else if (event.key === "Escape") {
+    cancelEdit()
+  }
+}
+
+// Drag and drop
+let draggedElement = null
+
+function handleDragStart(event) {
+  draggedElement = event.target.closest('.todo-item-wrapper')
+  if (!draggedElement) return; // Should not happen if called from ondragstart
+  draggedElement.classList.add("dragging")
+  event.dataTransfer.effectAllowed = "move"
+  event.dataTransfer.setData("text/plain", draggedElement.dataset.id)
+}
+
+function handleDragOver(event) {
+  event.preventDefault()
+  event.dataTransfer.dropEffect = "move"
+  
+  const container = event.target.closest('.todo-list')
+  if (!container) return;
+  
+  const afterElement = getDragAfterElement(container, event.clientY)
+  const dragging = document.querySelector(".dragging")
+  if (!dragging) return;
+
+  if (afterElement == null) {
+    container.appendChild(dragging)
+  } else {
+    container.insertBefore(dragging, afterElement)
+  }
+}
+
+function handleDrop(event) {
+  event.preventDefault()
+
+  const draggedId = Number.parseInt(event.dataTransfer.getData("text/plain"))
+  const targetElement = event.target.closest(".todo-item-wrapper")
+  if (!targetElement) return; // Dropped outside a valid target
+  
+  const targetId = Number.parseInt(targetElement.dataset.id)
+
+  if (draggedId !== targetId) {
+    reorderTodos(draggedId, targetId)
+  }
+}
+
+function handleDragEnd(event) {
+  if (draggedElement) {
+    draggedElement.classList.remove("dragging")
+  }
+  draggedElement = null
+  renderTodos() // Re-render to clean up styles
+}
+
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll(".todo-item-wrapper:not(.dragging)")]
+
+  return draggableElements.reduce(
+    (closest, child) => {
+      const box = child.getBoundingClientRect()
+      const offset = y - box.top - box.height / 2
+
+      if (offset < 0 && offset > closest.offset) {
+        return { offset: offset, element: child }
+      } else {
+        return closest
+      }
+    },
+    { offset: Number.NEGATIVE_INFINITY },
+  ).element
+}
+
+function reorderTodos(draggedId, targetId) {
+  const todos = getTodosForCurrentDate()
+  const draggedIndex = todos.findIndex((t) => t.id === draggedId)
+  const targetIndex = todos.findIndex((t) => t.id === targetId)
+
+  if (draggedIndex > -1 && targetIndex > -1) {
+    const [draggedTodo] = todos.splice(draggedIndex, 1)
+    todos.splice(targetIndex, 0, draggedTodo)
+    saveTodos()
+    renderTodos()
+  }
+}
+
+function toggleTodoList() {
+  todoListVisible = !todoListVisible
+  updateTodoListLayout()
+
+  const toggleBtn = document.getElementById("todoToggleBtn")
+  const icon = toggleBtn.querySelector("i")
+
+  if (todoListVisible) {
+    icon.setAttribute("data-lucide", "list-todo")
+    toggleBtn.classList.remove("active")
+  } else {
+    icon.setAttribute("data-lucide", "list-x")
+    toggleBtn.classList.add("active")
+  }
+
+  lucide.createIcons()
+}
+
+function updateTodoListLayout() {
+  const mainContent = document.getElementById("mainContent")
+  const todoSection = document.getElementById("todoSection")
+
+  if (todoListVisible) {
+    todoSection.classList.remove("hidden")
+    mainContent.classList.add("with-todos")
+    mainContent.classList.remove("timer-only")
+  } else {
+    todoSection.classList.add("hidden")
+    mainContent.classList.remove("with-todos")
+    mainContent.classList.add("timer-only")
+  }
+}
+
+// White Noise Functions
+function toggleWhiteNoise() {
+  const controls = document.getElementById("whiteNoiseControls")
+  const btn = document.getElementById("whiteNoiseBtn")
+
+  if (controls.style.display === "none" || !controls.style.display) {
+    closeAllPanels()
+    controls.style.display = "block"
+    btn.classList.add("active")
+  } else {
+    controls.style.display = "none"
+    btn.classList.remove("active")
+
+    if (whiteNoiseEnabled && currentNoise) {
+      currentNoise.stop()
+      currentNoise = null
+      whiteNoiseEnabled = false
+      updateWhiteNoiseButton()
+    }
+  }
+
+  updateWhiteNoiseButton()
+}
+
+function switchNoiseTab(tab) {
+  currentNoiseTab = tab
+
+  document.querySelectorAll(".noise-tab").forEach((tabBtn) => {
+    tabBtn.classList.remove("active")
+  })
+  document.getElementById(tab + "Tab").classList.add("active")
+
+  document.querySelectorAll(".noise-content").forEach((content) => {
+    content.classList.add("hidden")
+  })
+  document.getElementById(tab + "Content").classList.remove("hidden")
+
+  if (currentNoise) {
+    currentNoise.stop()
+    currentNoise = null
+    whiteNoiseEnabled = false
+    updateWhiteNoiseButton()
+
+    document.querySelectorAll(".noise-btn").forEach((btn) => {
+      btn.classList.remove("active")
+    })
+  }
+}
+
+function selectNoise(noiseType) {
+  if (!audioContext) {
+    initAudioContext()
+  }
+
+  const selectedBtn = document.querySelector(`[data-sound="${noiseType}"]`)
+
+  // Check if we are deselecting the active noise
+  if (whiteNoiseEnabled && selectedBtn.classList.contains("active")) {
+      if (currentNoise) {
+        currentNoise.stop()
+        currentNoise = null
+      }
+      whiteNoiseEnabled = false
+      selectedBtn.classList.remove("active")
+      updateWhiteNoiseButton()
+      return
+  }
+
+  // Stop any other noise that is playing
+  if (currentNoise) {
+    currentNoise.stop()
+    currentNoise = null
+  }
+  
+  document.querySelectorAll(".noise-btn").forEach((btn) => {
+    btn.classList.remove("active")
+  })
+
+  selectedBtn.classList.add("active")
+  whiteNoiseEnabled = true
+
+  currentNoise = noiseGenerators[noiseType]()
+  updateWhiteNoiseButton()
+}
+
+function updateNoiseVolume(value) {
+  noiseVolume = value / 100
+  if (noiseGainNode) {
+    noiseGainNode.gain.setValueAtTime(noiseVolume, audioContext.currentTime)
+  }
+
+  if (value == 0 && whiteNoiseEnabled) {
+    if (currentNoise) {
+      currentNoise.stop()
+      currentNoise = null
+    }
+    whiteNoiseEnabled = false
+    updateWhiteNoiseButton()
+
+    document.querySelectorAll(".noise-btn").forEach((btn) => {
+      btn.classList.remove("active")
+    })
+  }
+}
+
+function updateWhiteNoiseButton() {
+  const btn = document.getElementById("whiteNoiseBtn")
+
+  if (whiteNoiseEnabled) {
+    btn.classList.add("active")
+  } else {
+    btn.classList.remove("active")
+  }
+
+  lucide.createIcons()
+}
+
+// Enhanced White Noise Generators
+function generateStormSound() {
+  const bufferSize = audioContext.sampleRate * 3
+  const buffer = audioContext.createBuffer(2, bufferSize, audioContext.sampleRate)
+  const leftChannel = buffer.getChannelData(0)
+  const rightChannel = buffer.getChannelData(1)
+
+  for (let i = 0; i < bufferSize; i++) {
+    const rain = (Math.random() * 2 - 1) * 0.3
+    const thunder = Math.random() > 0.998 ? (Math.random() * 2 - 1) * 0.8 : 0
+    const wind = Math.sin(i * 0.001) * 0.2
+
+    leftChannel[i] = rain + thunder + wind
+    rightChannel[i] = rain + thunder * 0.8 + wind * 0.9
+  }
+
+  const source = audioContext.createBufferSource()
+  source.buffer = buffer
+  source.loop = true
+
+  noiseGainNode = audioContext.createGain()
+  noiseGainNode.gain.setValueAtTime(noiseVolume, audioContext.currentTime)
+
+  const filter = audioContext.createBiquadFilter()
+  filter.type = "lowpass"
+  filter.frequency.setValueAtTime(600, audioContext.currentTime)
+
+  source.connect(filter)
+  filter.connect(noiseGainNode)
+  noiseGainNode.connect(audioContext.destination)
+
+  source.start()
+  return source
+}
+
+function generateForestSound() {
+  const bufferSize = audioContext.sampleRate * 4
+  const buffer = audioContext.createBuffer(2, bufferSize, audioContext.sampleRate)
+  const leftChannel = buffer.getChannelData(0)
+  const rightChannel = buffer.getChannelData(1)
+
+  for (let i = 0; i < bufferSize; i++) {
+    const birds = Math.random() > 0.995 ? Math.sin(i * 0.1) * 0.3 : 0
+    const leaves = (Math.random() * 2 - 1) * 0.1 * Math.sin(i * 0.002)
+    const water = Math.sin(i * 0.005) * 0.05
+
+    leftChannel[i] = birds + leaves + water
+    rightChannel[i] = birds * 0.8 + leaves * 1.1 + water
+  }
+
+  const source = audioContext.createBufferSource()
+  source.buffer = buffer
+  source.loop = true
+
+  noiseGainNode = audioContext.createGain()
+  noiseGainNode.gain.setValueAtTime(noiseVolume, audioContext.currentTime)
+
+  const filter = audioContext.createBiquadFilter()
+  filter.type = "bandpass"
+  filter.frequency.setValueAtTime(800, audioContext.currentTime)
+  filter.Q.setValueAtTime(0.5, audioContext.currentTime)
+
+  source.connect(filter)
+  filter.connect(noiseGainNode)
+  noiseGainNode.connect(audioContext.destination)
+
+  source.start()
+  return source
+}
+
+function generateOceanSound() {
+  const bufferSize = audioContext.sampleRate * 6
+  const buffer = audioContext.createBuffer(2, bufferSize, audioContext.sampleRate)
+  const leftChannel = buffer.getChannelData(0)
+  const rightChannel = buffer.getChannelData(1)
+
+  for (let i = 0; i < bufferSize; i++) {
+    const wave1 = Math.sin(i * 0.008) * 0.4
+    const wave2 = Math.sin(i * 0.012) * 0.3
+    const foam = (Math.random() * 2 - 1) * 0.15
+
+    leftChannel[i] = wave1 + wave2 + foam
+    rightChannel[i] = wave1 * 0.9 + wave2 * 1.1 + foam * 0.8
+  }
+
+  const source = audioContext.createBufferSource()
+  source.buffer = buffer
+  source.loop = true
+
+  noiseGainNode = audioContext.createGain()
+  noiseGainNode.gain.setValueAtTime(noiseVolume, audioContext.currentTime)
+
+  const filter = audioContext.createBiquadFilter()
+  filter.type = "lowpass"
+  filter.frequency.setValueAtTime(400, audioContext.currentTime)
+
+  source.connect(filter)
+  filter.connect(noiseGainNode)
+  noiseGainNode.connect(audioContext.destination)
+
+  source.start()
+  return source
+}
+
+function generateCoffeeShopSound() {
+  const bufferSize = audioContext.sampleRate * 3
+  const buffer = audioContext.createBuffer(2, bufferSize, audioContext.sampleRate)
+  const leftChannel = buffer.getChannelData(0)
+  const rightChannel = buffer.getChannelData(1)
+
+  for (let i = 0; i < bufferSize; i++) {
+    const chatter = Math.sin(i * 0.003) * 0.15
+    const machine = Math.random() > 0.997 ? (Math.random() * 2 - 1) * 0.4 : 0
+    const ambience = (Math.random() * 2 - 1) * 0.1
+
+    leftChannel[i] = chatter + machine + ambience
+    rightChannel[i] = chatter * 0.9 + machine * 0.7 + ambience * 1.1
+  }
+
+  const source = audioContext.createBufferSource()
+  source.buffer = buffer
+  source.loop = true
+
+  noiseGainNode = audioContext.createGain()
+  noiseGainNode.gain.setValueAtTime(noiseVolume, audioContext.currentTime)
+
+  const filter = audioContext.createBiquadFilter()
+  filter.type = "bandpass"
+  filter.frequency.setValueAtTime(1200, audioContext.currentTime)
+  filter.Q.setValueAtTime(1, audioContext.currentTime)
+
+  source.connect(filter)
+  filter.connect(noiseGainNode)
+  noiseGainNode.connect(audioContext.destination)
+
+  source.start()
+  return source
+}
+
+function generateFireSound() {
+  const bufferSize = audioContext.sampleRate * 3
+  const buffer = audioContext.createBuffer(2, bufferSize, audioContext.sampleRate)
+  const leftChannel = buffer.getChannelData(0)
+  const rightChannel = buffer.getChannelData(1)
+
+  for (let i = 0; i < bufferSize; i++) {
+    const crackle = Math.random() > 0.99 ? (Math.random() * 2 - 1) * 0.5 : 0
+    const base = (Math.random() * 2 - 1) * 0.08
+    const pop = Math.random() > 0.999 ? (Math.random() * 2 - 1) * 0.3 : 0
+
+    leftChannel[i] = crackle + base + pop
+    rightChannel[i] = crackle * 0.8 + base * 1.1 + pop * 0.9
+  }
+
+  const source = audioContext.createBufferSource()
+  source.buffer = buffer
+  source.loop = true
+
+  noiseGainNode = audioContext.createGain()
+  noiseGainNode.gain.setValueAtTime(noiseVolume, audioContext.currentTime)
+
+  const filter = audioContext.createBiquadFilter()
+  filter.type = "lowpass"
+  filter.frequency.setValueAtTime(250, audioContext.currentTime)
+
+  source.connect(filter)
+  filter.connect(noiseGainNode)
+  noiseGainNode.connect(audioContext.destination)
+
+  source.start()
+  return source
+}
+
+function generateWindSound() {
+  const bufferSize = audioContext.sampleRate * 4
+  const buffer = audioContext.createBuffer(2, bufferSize, audioContext.sampleRate)
+  const leftChannel = buffer.getChannelData(0)
+  const rightChannel = buffer.getChannelData(1)
+
+  for (let i = 0; i < bufferSize; i++) {
+    const wind1 = Math.sin(i * 0.001) * 0.3
+    const wind2 = Math.sin(i * 0.0015) * 0.2
+    const highWind = (Math.random() * 2 - 1) * 0.12
+
+    leftChannel[i] = wind1 + wind2 + highWind
+    rightChannel[i] = wind1 * 0.9 + wind2 * 1.1 + highWind * 0.8
+  }
+
+  const source = audioContext.createBufferSource()
+  source.buffer = buffer
+  source.loop = true
+
+  noiseGainNode = audioContext.createGain()
+  noiseGainNode.gain.setValueAtTime(noiseVolume, audioContext.currentTime)
+
+  const filter = audioContext.createBiquadFilter()
+  filter.type = "highpass"
+  filter.frequency.setValueAtTime(150, audioContext.currentTime)
+
+  source.connect(filter)
+  filter.connect(noiseGainNode)
+  noiseGainNode.connect(audioContext.destination)
+
+  source.start()
+  return source
+}
+
+function generateBinauralBeat(frequency) {
+  const baseFreq = 200
+  const leftFreq = baseFreq
+  const rightFreq = baseFreq + frequency
+
+  const leftOsc = audioContext.createOscillator()
+  const rightOsc = audioContext.createOscillator()
+
+  const leftGain = audioContext.createGain()
+  const rightGain = audioContext.createGain()
+  const merger = audioContext.createChannelMerger(2)
+
+  noiseGainNode = audioContext.createGain()
+  noiseGainNode.gain.setValueAtTime(noiseVolume * 0.3, audioContext.currentTime)
+
+  leftOsc.frequency.setValueAtTime(leftFreq, audioContext.currentTime)
+  rightOsc.frequency.setValueAtTime(rightFreq, audioContext.currentTime)
+
+  leftOsc.type = "sine"
+  rightOsc.type = "sine"
+
+  leftGain.gain.setValueAtTime(1, audioContext.currentTime)
+  rightGain.gain.setValueAtTime(1, audioContext.currentTime)
+
+  leftOsc.connect(leftGain)
+  leftGain.connect(merger, 0, 0)
+
+  rightOsc.connect(rightGain)
+  rightGain.connect(merger, 0, 1)
+
+  merger.connect(noiseGainNode)
+  noiseGainNode.connect(audioContext.destination)
+
+  leftOsc.start()
+  rightOsc.start()
+
+  return {
+    stop: () => {
+      leftOsc.stop()
+      rightOsc.stop()
+    },
+  }
+}
+
+function closeAllPanels() {
+  document.getElementById("themeSelector").style.display = "none"
+  document.getElementById("whiteNoiseControls").style.display = "none"
+  document.getElementById("modalOverlay").style.display = "none"
+  document.getElementById("skipModalOverlay").style.display = "none"
+}
+
+function openFloatingWindow() {
+  const width = 380
+  const height = 480
+  const left = window.screenX + (window.outerWidth - width) / 2
+  const top = window.screenY + (window.outerHeight - height) / 2
+
+  if (floatingWindow && !floatingWindow.closed) {
+    floatingWindow.focus();
+    return;
+  }
+
+  floatingWindow = window.open(
+    "float-timer.html",
+    "TYMODOROTimer",
+    `width=${width},height=${height},left=${left},top=${top},resizable=yes,menubar=no,toolbar=no,location=no,status=no`,
+  )
+
+  if (!floatingWindow) {
+    alert("Could not open floating timer. Make sure pop-ups are enabled.")
+  }
+}
+
+function updateFloatingWindow() {
+  if (floatingWindow && !floatingWindow.closed) {
+    let currentTaskText = null
+    if (currentTaskId) {
+        const todos = getTodosForCurrentDate()
+        const task = todos.find(t => t.id === currentTaskId)
+        if (task) {
+            currentTaskText = task.text
+        }
+    }
+      
+    floatingWindow.postMessage(
+      {
+        type: "updateTimer",
+        timeLeft: timeLeft,
+        totalTime: totalTime,
+        currentSession: currentSession,
+        isRunning: isRunning,
+        currentTaskText: currentTaskText,
+        currentTheme: currentTheme
+      },
+      "*",
+    )
+  }
+}
+
+window.addEventListener("message", (event) => {
+  if (event.source !== floatingWindow) {
+      return; // Ignore messages from other sources
+  }
+  
+  if (event.data.type === "toggleTimer") {
+    toggleTimer()
+  } else if (event.data.type === "skipSession") {
+    skipSession()
+  } else if (event.data.type === "requestSync") {
+    updateFloatingWindow()
+  } else if (event.data.type === "floatWindowClosed") {
+    floatingWindow = null
+  }
+})
