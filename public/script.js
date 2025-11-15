@@ -29,11 +29,10 @@ let isDraggingWidget = false
 const dragOffsetX = 0
 const dragOffsetY = 0
 let calendarVisible = false
-const currentDate = new Date()
-let floatingWindow = null // Add floating window reference and management
-
-let selectedSessionTask = null
-let sessionMode = "quick" // "quick" or "task"
+const currentDate = new Date() // For calendar month/year navigation
+let currentCalendarDate = new Date() // For selected date's todos
+let floatingWindow = null 
+let currentTaskId = null // ID of the task linked to the timer
 
 const sessionData = {
   startTime: null,
@@ -49,30 +48,6 @@ let settings = {
   longBreakAfter: 4,
 }
 
-const themes = [
-  { name: "leather", colors: ["#d4793e", "#c65d1b", "#a8623d"] },
-  { name: "diner", colors: ["#8ba8d8", "#9b8b6f", "#6b9b7d"] },
-  { name: "alpine", colors: ["#e8e6e1", "#f5f2ed", "#c8c5bd"] },
-  { name: "dualshot", colors: ["#4a4a4a", "#3a3a3a", "#2a2a2a"] },
-  { name: "fundamentals", colors: ["#a8c686", "#b8a366", "#8a7665"] },
-  { name: "our theme", colors: ["#ff3333", "#ffcc00", "#ffffff"] },
-  { name: "bz mode", colors: ["#0066ff", "#00ccff", "#ffffff"] },
-  { name: "evil eye", colors: ["#00ccff", "#000000", "#ffffff"] },
-  { name: "menthol", colors: ["#00ff99", "#00cc66", "#ffffff"] },
-  { name: "comfy", colors: ["#e0e0e0", "#f5f5f5", "#d9d9d9"] },
-  { name: "trackday", colors: ["#cc3333", "#6699cc", "#99ccff"] },
-  { name: "muted", colors: ["#d0d0d0", "#b0b0b0", "#c0c0c0"] },
-  { name: "red samurai", colors: ["#cc3333", "#ff0000", "#ffffff"] },
-  { name: "sweden", colors: ["#ffff00", "#00ccff", "#ffffff"] },
-  { name: "passion fruit", colors: ["#ff9999", "#ff6699", "#ffffff"] },
-  { name: "suisei", colors: ["#ffffff", "#ffcc00", "#ff9933"] },
-  { name: "striker", colors: ["#0066ff", "#66ccff", "#ffffff"] },
-  { name: "cy red", colors: ["#cc3333", "#ff6666", "#000000"] },
-  { name: "grand prix", colors: ["#ffff00", "#d0d0d0", "#404040"] },
-  { name: "dekb", colors: ["#cc3333", "#00ff00", "#0066ff"] },
-  { name: "hedge", colors: ["#99dd66", "#ccff99", "#ffffff"] },
-]
-
 let stats = {
   totalSessions: 0,
   weekSessions: 0,
@@ -85,7 +60,7 @@ let stats = {
 }
 
 // Todos
-let todos = []
+let allTodos = {} // Store all todos, keyed by date string
 
 // White noise generators
 const noiseGenerators = {
@@ -108,14 +83,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   await requestNotificationPermission()
   loadSettings()
   loadStats()
-  loadTodos()
+  loadTodos() // This will now load todos for the current date
   loadTheme()
   updateDisplay()
   renderTodos()
   updateTodoProgress()
   updateTodoListLayout()
   initializeCalendar()
-  setupCalendarDayClick() // Call the new setup function
 
   document.addEventListener("click", initAudioContext, { once: true })
   document.addEventListener("touchstart", initAudioContext, { once: true })
@@ -229,40 +203,8 @@ function setTheme(theme) {
   updateThemeSelector()
   hideThemeSelector()
   themePreviewActive = null
+  updateFloatingWindow() // Send theme change to floating window
 }
-
-function renderThemeList(searchTerm = "") {
-  const themeList = document.getElementById("themeList")
-  const filteredThemes = searchTerm
-    ? themes.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()))
-    : themes
-
-  themeList.innerHTML = filteredThemes
-    .map(theme => `
-      <div class="theme-list-item ${theme.name === currentTheme ? "active" : ""}" 
-           onclick="setTheme('${theme.name}')"
-           onmouseenter="previewTheme('${theme.name}')"
-           onmouseleave="revertTheme()">
-        <span class="theme-name">${theme.name}</span>
-        <div class="theme-color-circles">
-          ${theme.colors.map(color => `<div class="color-circle" style="background-color: ${color};"></div>`).join("")}
-        </div>
-      </div>
-    `)
-    .join("")
-}
-
-function filterThemes(searchTerm) {
-  renderThemeList(searchTerm)
-}
-
-function showThemeSelector() {
-  closeAllPanels()
-  document.getElementById("themeSelector").style.display = "block"
-  renderThemeList()
-  document.getElementById("themeSearchInput").value = ""
-}
-
 
 function updateThemeSelector() {
   const themeOptions = document.querySelectorAll(".theme-option")
@@ -273,6 +215,11 @@ function updateThemeSelector() {
       option.classList.remove("active")
     }
   })
+}
+
+function showThemeSelector() {
+  closeAllPanels()
+  document.getElementById("themeSelector").style.display = "block"
 }
 
 function hideThemeSelector() {
@@ -335,6 +282,8 @@ function updateCalendarDisplay() {
 
   // Add days
   const today = new Date()
+  const selectedDateStr = currentCalendarDate.toDateString()
+
   for (let day = 1; day <= daysInMonth; day++) {
     const dayEl = document.createElement("button")
     dayEl.className = "calendar-day"
@@ -342,11 +291,16 @@ function updateCalendarDisplay() {
 
     const date = new Date(year, month, day)
     const dateStr = date.toDateString()
-    dayEl.dataset.date = dateStr // Add data-date attribute
 
     if (dateStr === today.toDateString()) {
       dayEl.classList.add("today")
     }
+    
+    if (dateStr === selectedDateStr) {
+      dayEl.classList.add("active")
+    }
+    
+    dayEl.onclick = () => selectCalendarDate(date)
 
     // Add session count coloring
     if (stats.dailyData && stats.dailyData[dateStr]) {
@@ -363,6 +317,23 @@ function updateCalendarDisplay() {
 
     calendarGrid.appendChild(dayEl)
   }
+}
+
+function selectCalendarDate(date) {
+    currentCalendarDate = date
+    updateCalendarDisplay() // Re-render calendar to show 'active' date
+    renderTodos() // Re-render todo list for the selected date
+    updateTodoProgress()
+    
+    // Update todo list title
+    const todoTitle = document.getElementById("todoTitle")
+    const todayStr = new Date().toDateString()
+    if (date.toDateString() === todayStr) {
+        todoTitle.innerHTML = `<i data-lucide="check-square"></i> Today's Focus`
+    } else {
+        todoTitle.innerHTML = `<i data-lucide="check-square"></i> Focus for ${date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`
+    }
+    lucide.createIcons()
 }
 
 function prevMonth() {
@@ -393,27 +364,27 @@ function toggleCalendar() {
 
 // Todo Management
 function loadTodos() {
-  const savedTodos = localStorage.getItem("tymodoro-todos")
-  const todayKey = new Date().toDateString()
-
+  const savedTodos = localStorage.getItem("tymodoro-all-todos")
   if (savedTodos) {
-    const todoData = JSON.parse(savedTodos)
-    if (todoData.date === todayKey) {
-      todos = todoData.todos || []
-    } else {
-      todos = []
-      saveTodos()
-    }
+    allTodos = JSON.parse(savedTodos)
+  }
+  // Ensure current date has an entry if it doesn't
+  const dateKey = currentCalendarDate.toDateString()
+  if (!allTodos[dateKey]) {
+      allTodos[dateKey] = []
   }
 }
 
 function saveTodos() {
-  const todayKey = new Date().toDateString()
-  const todoData = {
-    date: todayKey,
-    todos: todos,
-  }
-  localStorage.setItem("tymodoro-todos", JSON.stringify(todoData))
+  localStorage.setItem("tymodoro-all-todos", JSON.stringify(allTodos))
+}
+
+function getTodosForCurrentDate() {
+    const dateKey = currentCalendarDate.toDateString()
+    if (!allTodos[dateKey]) {
+        allTodos[dateKey] = []
+    }
+    return allTodos[dateKey]
 }
 
 function addTodo() {
@@ -429,17 +400,20 @@ function addTodo() {
     priority: priority,
     completed: false,
     createdAt: new Date().toISOString(),
+    subtasks: [] // Add subtasks array
   }
 
+  const todos = getTodosForCurrentDate()
   todos.unshift(todo)
-  input.value = ""
 
+  input.value = ""
   saveTodos()
   renderTodos()
   updateTodoProgress()
 }
 
 function toggleTodo(id) {
+  const todos = getTodosForCurrentDate()
   const todo = todos.find((t) => t.id === id)
   if (todo) {
     todo.completed = !todo.completed
@@ -450,26 +424,116 @@ function toggleTodo(id) {
 }
 
 function deleteTodo(id) {
-  todos = todos.filter((t) => t.id !== id)
+  const dateKey = currentCalendarDate.toDateString()
+  allTodos[dateKey] = allTodos[dateKey].filter((t) => t.id !== id)
+  
+  if (currentTaskId === id) {
+      currentTaskId = null // Deselect if deleted
+      updateSessionLabel()
+  }
+  
   saveTodos()
   renderTodos()
   updateTodoProgress()
 }
 
 function clearCompleted() {
-  todos = todos.filter((t) => !t.completed)
+  const dateKey = currentCalendarDate.toDateString()
+  allTodos[dateKey] = allTodos[dateKey].filter((t) => !t.completed)
+  
+  if (currentTaskId && !allTodos[dateKey].find(t => t.id === currentTaskId)) {
+      currentTaskId = null // Deselect if cleared
+      updateSessionLabel()
+  }
+
   saveTodos()
   renderTodos()
   updateTodoProgress()
 }
 
+function addSubtask(parentId) {
+    const input = document.getElementById(`subtaskInput${parentId}`)
+    const text = input.value.trim()
+    if (text === "") return
+
+    const subtask = {
+        id: Date.now(),
+        text: text,
+        completed: false
+    }
+
+    const todos = getTodosForCurrentDate()
+    const parentTodo = todos.find(t => t.id === parentId)
+    if (parentTodo) {
+        parentTodo.subtasks.push(subtask)
+        saveTodos()
+        renderTodos() // Re-render to show new subtask
+    }
+}
+
+function toggleSubtask(parentId, subtaskId) {
+    const todos = getTodosForCurrentDate()
+    const parentTodo = todos.find(t => t.id === parentId)
+    if (parentTodo) {
+        const subtask = parentTodo.subtasks.find(st => st.id === subtaskId)
+        if (subtask) {
+            subtask.completed = !subtask.completed
+            saveTodos()
+            renderTodos()
+        }
+    }
+}
+
+function deleteSubtask(parentId, subtaskId) {
+    const todos = getTodosForCurrentDate()
+    const parentTodo = todos.find(t => t.id === parentId)
+    if (parentTodo) {
+        parentTodo.subtasks = parentTodo.subtasks.filter(st => st.id !== subtaskId)
+        saveTodos()
+        renderTodos()
+    }
+}
+
+function selectTask(id) {
+    if (currentTaskId === id) {
+        // Deselect if clicking the same task
+        currentTaskId = null
+    } else {
+        currentTaskId = id
+    }
+    updateSessionLabel()
+    renderTodos() // Re-render to show selection highlight
+}
+
+function updateSessionLabel() {
+    const sessionLabel = document.getElementById("sessionLabel")
+    let labelText = "Deep Focus Session" // Default
+
+    if (currentSession === "shortBreak") {
+        labelText = "Quick Recharge"
+    } else if (currentSession === "longBreak") {
+        labelText = "Extended Break"
+    } else if (currentTaskId) {
+        const todos = getTodosForCurrentDate()
+        const task = todos.find(t => t.id === currentTaskId)
+        if (task) {
+            labelText = task.text
+        }
+    }
+    
+    sessionLabel.textContent = labelText
+    updateFloatingWindow() // Sync label change
+}
+
+
 function renderTodos() {
   const todoList = document.getElementById("todoList")
+  const todos = getTodosForCurrentDate()
   const filteredTodos = showCompleted ? todos : todos.filter((t) => !t.completed)
 
   if (filteredTodos.length === 0) {
     const emptyMessage = showCompleted
-      ? "No tasks for today yet.<br>Add your first task to get started!"
+      ? "No tasks for this day yet.<br>Add your first task to get started!"
       : "No active tasks.<br>Great job staying on top of things!"
 
     todoList.innerHTML = `
@@ -490,7 +554,7 @@ function renderTodos() {
     ${filteredTodos
       .map(
         (todo, index) => `
-      <div class="todo-item ${todo.completed ? "completed" : ""}" 
+      <div class="todo-item-wrapper ${currentTaskId === todo.id ? 'selected' : ''}" 
            draggable="true" 
            data-id="${todo.id}"
            data-index="${index}"
@@ -498,70 +562,69 @@ function renderTodos() {
            ondragover="handleDragOver(event)"
            ondrop="handleDrop(event)"
            ondragend="handleDragEnd(event)">
-        <div class="todo-priority-indicator ${todo.priority}"></div>
-        <div class="todo-checkbox ${todo.completed ? "checked" : ""}" onclick="toggleTodo(${todo.id})">
-          ${todo.completed ? '<i data-lucide="check"></i>' : ""}
-        </div>
-        ${
-          editingTodoId === todo.id
-            ? `
-          <textarea class="todo-edit-input" 
-                 id="editInput${todo.id}" maxlength="100"
-                 onkeydown="handleEditKeydown(event, ${todo.id})"
-                 onblur="cancelEdit()">${escapeHtml(todo.text)}</textarea>
-        `
-            : `
-          <div class="todo-text" ondblclick="startEdit(${todo.id})">${escapeHtml(todo.text)}</div>
-        `
-        }
-        <div class="todo-actions">
+           
+        <div class="todo-item">
+          <div class="todo-priority-indicator ${todo.priority}"></div>
+          <div class="todo-checkbox ${todo.completed ? "checked" : ""}" onclick="event.stopPropagation(); toggleTodo(${todo.id})">
+            ${todo.completed ? '<i data-lucide="check"></i>' : ""}
+          </div>
           ${
             editingTodoId === todo.id
               ? `
-            <button class="todo-action-btn save" onclick="saveEdit(${todo.id})" title="Save">
-              <i data-lucide="check"></i>
-            </button>
-            <button class="todo-action-btn cancel" onclick="cancelEdit()" title="Cancel">
-              <i data-lucide="x"></i>
-            </button>
+            <textarea class="todo-edit-input" 
+                   id="editInput${todo.id}" maxlength="100"
+                   onkeydown="handleEditKeydown(event, ${todo.id})"
+                   onblur="cancelEdit()">${escapeHtml(todo.text)}</textarea>
           `
               : `
-            <button class="todo-action-btn" onclick="addSubtask(${todo.id})" title="Add subtask">
-              <i data-lucide="plus"></i>
-            </button>
-            <button class="todo-action-btn" onclick="startEdit(${todo.id})" title="Edit task">
-              <i data-lucide="edit-2"></i>
-            </button>
-            <button class="todo-action-btn" onclick="deleteTodo(${todo.id})" title="Delete task">
-              <i data-lucide="trash-2"></i>
-            </button>
+            <div class="todo-text" onclick="selectTask(${todo.id})">${escapeHtml(todo.text)}</div>
           `
           }
-        </div>
-      </div>
-      ${
-        todo.subtasks && todo.subtasks.length > 0
-          ? `
-      <div class="subtasks-container">
-        ${todo.subtasks
-          .map(
-            subtask => `
-        <div class="subtask-item ${subtask.completed ? "completed" : ""}">
-          <div class="subtask-checkbox ${subtask.completed ? "checked" : ""}" onclick="toggleSubtask(${todo.id}, ${subtask.id})">
-            ${subtask.completed ? '<i data-lucide="check"></i>' : ""}
+          <div class="todo-actions">
+            ${
+              editingTodoId === todo.id
+                ? `
+              <button class="todo-action-btn save" onclick="event.stopPropagation(); saveEdit(${todo.id})" title="Save">
+                <i data-lucide="check"></i>
+              </button>
+              <button class="todo-action-btn cancel" onclick="event.stopPropagation(); cancelEdit()" title="Cancel">
+                <i data-lucide="x"></i>
+              </button>
+            `
+                : `
+              <button class="todo-action-btn" onclick="event.stopPropagation(); startEdit(${todo.id})" title="Edit task">
+                <i data-lucide="edit-2"></i>
+              </button>
+              <button class="todo-action-btn" onclick="event.stopPropagation(); deleteTodo(${todo.id})" title="Delete task">
+                <i data-lucide="trash-2"></i>
+              </button>
+            `
+            }
           </div>
-          <span class="subtask-text">${escapeHtml(subtask.text)}</span>
-          <button class="subtask-delete-btn" onclick="deleteSubtask(${todo.id}, ${subtask.id})">
-            <i data-lucide="x"></i>
-          </button>
         </div>
-        `
-          )
-          .join("")}
+        
+        <div class="subtask-list">
+            ${todo.subtasks.map(st => `
+                <div classclass="subtask-item ${st.completed ? 'completed' : ''}">
+                    <div class="subtask-checkbox ${st.completed ? 'checked' : ''}" onclick="event.stopPropagation(); toggleSubtask(${todo.id}, ${st.id})">
+                        ${st.completed ? '<i data-lucide="check" style="width: 12px; height: 12px;"></i>' : ''}
+                    </div>
+                    <span class="subtask-text">${escapeHtml(st.text)}</span>
+                    <button class="subtask-delete-btn" onclick="event.stopPropagation(); deleteSubtask(${todo.id}, ${st.id})">
+                        <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+                    </button>
+                </div>
+            `).join('')}
+        </div>
+        
+        <div class="subtask-input-container">
+            <input type="text" class="subtask-input" id="subtaskInput${todo.id}" placeholder="Add subtask..."
+                   onkeydown="if(event.key === 'Enter') { event.preventDefault(); addSubtask(${todo.id}); }">
+            <button class="add-subtask-btn" onclick="event.stopPropagation(); addSubtask(${todo.id})">
+                <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
+            </button>
+        </div>
       </div>
-      `
-          : ""
-      }
     `,
       )
       .join("")}
@@ -570,7 +633,9 @@ function renderTodos() {
   lucide.createIcons()
 }
 
+
 function updateTodoProgress() {
+  const todos = getTodosForCurrentDate()
   const completed = todos.filter((t) => t.completed).length
   const total = todos.length
   const progressText = `${completed}/${total} completed`
@@ -589,85 +654,7 @@ function escapeHtml(text) {
   return div.innerHTML
 }
 
-function addSubtask(parentTodoId) {
-  const todo = todos.find(t => t.id === parentTodoId)
-  if (!todo) return
-  
-  if (!todo.subtasks) todo.subtasks = []
-  
-  const subtaskText = prompt("Add a subtask:")
-  if (!subtaskText || subtaskText.trim() === "") return
-  
-  const subtask = {
-    id: Date.now(),
-    text: subtaskText.trim(),
-    completed: false
-  }
-  
-  todo.subtasks.push(subtask)
-  saveTodos()
-  renderTodos()
-}
-
-function toggleSubtask(parentTodoId, subtaskId) {
-  const todo = todos.find(t => t.id === parentTodoId)
-  if (!todo || !todo.subtasks) return
-  
-  const subtask = todo.subtasks.find(s => s.id === subtaskId)
-  if (subtask) {
-    subtask.completed = !subtask.completed
-    saveTodos()
-    renderTodos()
-  }
-}
-
-function deleteSubtask(parentTodoId, subtaskId) {
-  const todo = todos.find(t => t.id === parentTodoId)
-  if (!todo || !todo.subtasks) return
-  
-  todo.subtasks = todo.subtasks.filter(s => s.id !== subtaskId)
-  saveTodos()
-  renderTodos()
-}
-
-function setupCalendarDayClick() {
-  document.querySelectorAll(".calendar-day").forEach(day => {
-    day.addEventListener("click", function() {
-      const dateStr = this.dataset.date
-      if (dateStr) {
-        showTasksForDate(dateStr)
-      }
-    })
-  })
-}
-
-function showTasksForDate(dateStr) {
-  // Find tasks for this date or show option to add new task
-  closeAllPanels()
-  document.getElementById("modalTitle").textContent = `Tasks for ${new Date(dateStr).toLocaleDateString()}`
-  document.getElementById("modalContent").innerHTML = `
-    <div class="date-tasks">
-      <p style="color: var(--text-muted); margin-bottom: 1rem;">Click "Go to Todo List" to manage tasks for this date.</p>
-      <button class="apply-btn" onclick="goToTodoListTab()">Go to Todo List</button>
-    </div>
-  `
-  document.getElementById("modalOverlay").style.display = "flex"
-}
-
-function goToTodoListTab() {
-  hideModal()
-  toggleTodoList()
-}
-
-
 async function toggleTimer() {
-  if (!isRunning && currentSession === "work" && !selectedSessionTask) {
-    // If starting a new work session without a selected task, show mode selector
-    showSessionMode()
-    return
-  }
-  
-  // ... existing timer code ...
   if (isRunning) {
     clearInterval(timerInterval)
     pausedTime += Date.now() - startTime
@@ -745,49 +732,25 @@ function completeSession() {
   }
   saveStats()
   updateCalendarDisplay()
-  // Reset task selection after a work session
-  selectedSessionTask = null
-  sessionMode = "quick"
 }
 
 function setSession(session) {
   currentSession = session
-  
-  // Reset task selection if switching to break or if not starting a work session with a selected task
-  if (session !== "work" || !selectedSessionTask) {
-      selectedSessionTask = null
-      sessionMode = "quick"
-  }
-
-  const sessionLabel = document.getElementById("sessionLabel")
-  const floatingLabel = document.getElementById("floatingSessionLabel")
-
   startTime = null
   pausedTime = 0
 
   if (session === "work") {
     timeLeft = settings.focusTime * 60
     totalTime = settings.focusTime * 60
-    
-    // Use selected task if available
-    if (selectedSessionTask) {
-        sessionLabel.textContent = selectedSessionTask.text
-        if (floatingLabel) floatingLabel.textContent = selectedSessionTask.text.substring(0, 15)
-    } else {
-        sessionLabel.textContent = "Deep Focus Session"
-        if (floatingLabel) floatingLabel.textContent = "Deep Focus"
-    }
   } else if (session === "shortBreak") {
     timeLeft = settings.shortBreakTime * 60
     totalTime = settings.shortBreakTime * 60
-    sessionLabel.textContent = "Quick Recharge"
-    if (floatingLabel) floatingLabel.textContent = "Break"
   } else {
     timeLeft = settings.longBreakTime * 60
     totalTime = settings.longBreakTime * 60
-    sessionLabel.textContent = "Extended Break"
-    if (floatingLabel) floatingLabel.textContent = "Break"
   }
+  
+  updateSessionLabel() // Update label based on new session
   updateDisplay()
   updateFloatingWindow() // Sync after session change
 }
@@ -887,7 +850,8 @@ function toggleSound() {
 // Modal Functions
 function showStats() {
   closeAllPanels()
-
+  
+  const todos = getTodosForCurrentDate()
   const completedTodos = todos.filter((t) => t.completed).length
   const totalTodos = todos.length
 
@@ -914,12 +878,12 @@ function showStats() {
       <div class="stat-card">
         <i data-lucide="check-square" style="margin: 0 auto 0.5rem; display: block; width: 20px; height: 20px;"></i>
         <div class="stat-number">${completedTodos}</div>
-        <div class="stat-label">Tasks Completed Today</div>
+        <div class="stat-label">Tasks Completed (${currentCalendarDate.toLocaleDateString('en-US', {month: 'short', day:'numeric'})})</div>
       </div>
       <div class="stat-card">
         <i data-lucide="list-todo" style="margin: 0 auto 0.5rem; display: block; width: 20px; height: 20px;"></i>
         <div class="stat-number">${totalTodos}</div>
-        <div class="stat-label">Total Tasks Today</div>
+        <div class="stat-label">Total Tasks (${currentCalendarDate.toLocaleDateString('en-US', {month: 'short', day:'numeric'})})</div>
       </div>
     </div>
   `
@@ -1089,17 +1053,16 @@ function setupFloatingWidgetDrag() {
 
 // Keyboard shortcuts
 document.addEventListener("keydown", (e) => {
-  if (e.code === "Space" && !e.target.matches("input, textarea")) {
+  if (e.code === "Space" && !e.target.matches("input, textarea, .subtask-input")) {
     e.preventDefault()
     toggleTimer()
-  } else if (e.code === "KeyR" && !e.target.matches("input, textarea")) {
+  } else if (e.code === "KeyR" && !e.target.matches("input, textarea, .subtask-input")) {
     e.preventDefault()
     resetTimer()
   } else if (e.code === "Escape") {
     hideModal()
     hideThemeSelector()
-    hideSessionMode() // Close session mode on escape
-    hideTaskSelector() // Close task selector on escape
+    cancelEdit()
   }
 })
 
@@ -1149,11 +1112,15 @@ function saveEdit(id) {
     cancelEdit()
     return
   }
-
+  
+  const todos = getTodosForCurrentDate()
   const todo = todos.find((t) => t.id === id)
   if (todo) {
     todo.text = newText
     saveTodos()
+    if (currentTaskId === id) {
+        updateSessionLabel() // Update timer label if edited task is selected
+    }
   }
 
   editingTodoId = null
@@ -1178,7 +1145,7 @@ function handleEditKeydown(event, id) {
 let draggedElement = null
 
 function handleDragStart(event) {
-  draggedElement = event.target
+  draggedElement = event.target.closest('.todo-item-wrapper')
   event.target.classList.add("dragging")
   event.dataTransfer.effectAllowed = "move"
   event.dataTransfer.setData("text/html", event.target.outerHTML)
@@ -1187,14 +1154,15 @@ function handleDragStart(event) {
 function handleDragOver(event) {
   event.preventDefault()
   event.dataTransfer.dropEffect = "move"
-
-  const afterElement = getDragAfterElement(event.currentTarget.parentNode, event.clientY)
+  
+  const container = event.target.closest('.todo-list')
+  const afterElement = getDragAfterElement(container, event.clientY)
   const dragging = document.querySelector(".dragging")
 
   if (afterElement == null) {
-    event.currentTarget.parentNode.appendChild(dragging)
+    container.appendChild(dragging)
   } else {
-    event.currentTarget.parentNode.insertBefore(dragging, afterElement)
+    container.insertBefore(dragging, afterElement)
   }
 }
 
@@ -1202,9 +1170,9 @@ function handleDrop(event) {
   event.preventDefault()
 
   const draggedId = Number.parseInt(draggedElement.dataset.id)
-  const targetElement = event.target.closest(".todo-item")
-  if (!targetElement) return // Handle cases where drop target is not a todo-item
-
+  const targetElement = event.target.closest(".todo-item-wrapper")
+  if (!targetElement) return; // Dropped outside a valid target
+  
   const targetId = Number.parseInt(targetElement.dataset.id)
 
   if (draggedId !== targetId) {
@@ -1213,13 +1181,15 @@ function handleDrop(event) {
 }
 
 function handleDragEnd(event) {
-  event.target.classList.remove("dragging")
+  if (draggedElement) {
+    draggedElement.classList.remove("dragging")
+  }
   draggedElement = null
-  renderTodos()
+  renderTodos() // Re-render to clean up styles
 }
 
 function getDragAfterElement(container, y) {
-  const draggableElements = [...container.querySelectorAll(".todo-item:not(.dragging)")]
+  const draggableElements = [...container.querySelectorAll(".todo-item-wrapper:not(.dragging)")]
 
   return draggableElements.reduce(
     (closest, child) => {
@@ -1237,6 +1207,7 @@ function getDragAfterElement(container, y) {
 }
 
 function reorderTodos(draggedId, targetId) {
+  const todos = getTodosForCurrentDate()
   const draggedIndex = todos.findIndex((t) => t.id === draggedId)
   const targetIndex = todos.findIndex((t) => t.id === targetId)
 
@@ -1345,13 +1316,18 @@ function selectNoise(noiseType) {
   })
 
   const selectedBtn = document.querySelector(`[data-sound="${noiseType}"]`)
-
+  
+  // Check if we are deselecting the active noise
   if (whiteNoiseEnabled && selectedBtn.classList.contains("active")) {
-    whiteNoiseEnabled = false
-    updateWhiteNoiseButton()
-    return
+      whiteNoiseEnabled = false
+      updateWhiteNoiseButton()
+      return
   }
-
+  
+  // This logic was slightly flawed. If nothing is active, it should just activate.
+  // If something else is active, it should stop it and start the new one.
+  // The logic above (if(currentNoise)) already handles stopping.
+  
   selectedBtn.classList.add("active")
   whiteNoiseEnabled = true
 
@@ -1489,279 +1465,4 @@ function generateOceanSound() {
 
   source.connect(filter)
   filter.connect(noiseGainNode)
-  noiseGainNode.connect(audioContext.destination)
-
-  source.start()
-  return source
-}
-
-function generateCoffeeShopSound() {
-  const bufferSize = audioContext.sampleRate * 3
-  const buffer = audioContext.createBuffer(2, bufferSize, audioContext.sampleRate)
-  const leftChannel = buffer.getChannelData(0)
-  const rightChannel = buffer.getChannelData(1)
-
-  for (let i = 0; i < bufferSize; i++) {
-    const chatter = Math.sin(i * 0.003) * 0.15
-    const machine = Math.random() > 0.997 ? (Math.random() * 2 - 1) * 0.4 : 0
-    const ambience = (Math.random() * 2 - 1) * 0.1
-
-    leftChannel[i] = chatter + machine + ambience
-    rightChannel[i] = chatter * 0.9 + machine * 0.7 + ambience * 1.1
-  }
-
-  const source = audioContext.createBufferSource()
-  source.buffer = buffer
-  source.loop = true
-
-  noiseGainNode = audioContext.createGain()
-  noiseGainNode.gain.setValueAtTime(noiseVolume, audioContext.currentTime)
-
-  const filter = audioContext.createBiquadFilter()
-  filter.type = "bandpass"
-  filter.frequency.setValueAtTime(1200, audioContext.currentTime)
-  filter.Q.setValueAtTime(1, audioContext.currentTime)
-
-  source.connect(filter)
-  filter.connect(noiseGainNode)
-  noiseGainNode.connect(audioContext.destination)
-
-  source.start()
-  return source
-}
-
-function generateFireSound() {
-  const bufferSize = audioContext.sampleRate * 3
-  const buffer = audioContext.createBuffer(2, bufferSize, audioContext.sampleRate)
-  const leftChannel = buffer.getChannelData(0)
-  const rightChannel = buffer.getChannelData(1)
-
-  for (let i = 0; i < bufferSize; i++) {
-    const crackle = Math.random() > 0.99 ? (Math.random() * 2 - 1) * 0.5 : 0
-    const base = (Math.random() * 2 - 1) * 0.08
-    const pop = Math.random() > 0.999 ? (Math.random() * 2 - 1) * 0.3 : 0
-
-    leftChannel[i] = crackle + base + pop
-    rightChannel[i] = crackle * 0.8 + base * 1.1 + pop * 0.9
-  }
-
-  const source = audioContext.createBufferSource()
-  source.buffer = buffer
-  source.loop = true
-
-  noiseGainNode = audioContext.createGain()
-  noiseGainNode.gain.setValueAtTime(noiseVolume, audioContext.currentTime)
-
-  const filter = audioContext.createBiquadFilter()
-  filter.type = "lowpass"
-  filter.frequency.setValueAtTime(250, audioContext.currentTime)
-
-  source.connect(filter)
-  filter.connect(noiseGainNode)
-  noiseGainNode.connect(audioContext.destination)
-
-  source.start()
-  return source
-}
-
-function generateWindSound() {
-  const bufferSize = audioContext.sampleRate * 4
-  const buffer = audioContext.createBuffer(2, bufferSize, audioContext.sampleRate)
-  const leftChannel = buffer.getChannelData(0)
-  const rightChannel = buffer.getChannelData(1)
-
-  for (let i = 0; i < bufferSize; i++) {
-    const wind1 = Math.sin(i * 0.001) * 0.3
-    const wind2 = Math.sin(i * 0.0015) * 0.2
-    const highWind = (Math.random() * 2 - 1) * 0.12
-
-    leftChannel[i] = wind1 + wind2 + highWind
-    rightChannel[i] = wind1 * 0.9 + wind2 * 1.1 + highWind * 0.8
-  }
-
-  const source = audioContext.createBufferSource()
-  source.buffer = buffer
-  source.loop = true
-
-  noiseGainNode = audioContext.createGain()
-  noiseGainNode.gain.setValueAtTime(noiseVolume, audioContext.currentTime)
-
-  const filter = audioContext.createBiquadFilter()
-  filter.type = "highpass"
-  filter.frequency.setValueAtTime(150, audioContext.currentTime)
-
-  source.connect(filter)
-  filter.connect(noiseGainNode)
-  noiseGainNode.connect(audioContext.destination)
-
-  source.start()
-  return source
-}
-
-function generateBinauralBeat(frequency) {
-  const baseFreq = 200
-  const leftFreq = baseFreq
-  const rightFreq = baseFreq + frequency
-
-  const leftOsc = audioContext.createOscillator()
-  const rightOsc = audioContext.createOscillator()
-
-  const leftGain = audioContext.createGain()
-  const rightGain = audioContext.createGain()
-  const merger = audioContext.createChannelMerger(2)
-
-  noiseGainNode = audioContext.createGain()
-  noiseGainNode.gain.setValueAtTime(noiseVolume * 0.3, audioContext.currentTime)
-
-  leftOsc.frequency.setValueAtTime(leftFreq, audioContext.currentTime)
-  rightOsc.frequency.setValueAtTime(rightFreq, audioContext.currentTime)
-
-  leftOsc.type = "sine"
-  rightOsc.type = "sine"
-
-  leftGain.gain.setValueAtTime(1, audioContext.currentTime)
-  rightGain.gain.setValueAtTime(1, audioContext.currentTime)
-
-  leftOsc.connect(leftGain)
-  leftGain.connect(merger, 0, 0)
-
-  rightOsc.connect(rightGain)
-  rightGain.connect(merger, 0, 1)
-
-  merger.connect(noiseGainNode)
-  noiseGainNode.connect(audioContext.destination)
-
-  leftOsc.start()
-  rightOsc.start()
-
-  return {
-    stop: () => {
-      leftOsc.stop()
-      rightOsc.stop()
-    },
-  }
-}
-
-function closeAllPanels() {
-  document.getElementById("themeSelector").style.display = "none"
-  document.getElementById("whiteNoiseControls").style.display = "none"
-  document.getElementById("modalOverlay").style.display = "none"
-  document.getElementById("skipModalOverlay").style.display = "none"
-}
-
-function openFloatingWindow() {
-  const width = 380
-  const height = 480
-  const left = window.screenX + (window.outerWidth - width) / 2
-  const top = window.screenY + (window.outerHeight - height) / 2
-
-  floatingWindow = window.open(
-    "float-timer.html",
-    "TYMODOROTimer",
-    `width=${width},height=${height},left=${left},top=${top},resizable=yes,menubar=no,toolbar=no,location=no,status=no`,
-  )
-
-  if (!floatingWindow) {
-    alert("Could not open floating timer. Make sure pop-ups are enabled.")
-  }
-}
-
-function updateFloatingWindow() {
-  if (floatingWindow && !floatingWindow.closed) {
-    floatingWindow.postMessage(
-      {
-        type: "updateTimer",
-        timeLeft: timeLeft,
-        totalTime: totalTime,
-        currentSession: currentSession,
-        isRunning: isRunning,
-      },
-      "*",
-    )
-  }
-}
-
-window.addEventListener("message", (event) => {
-  if (event.data.type === "sessionComplete") {
-    completeSession()
-  } else if (event.data.type === "skipSession") {
-    skipSession()
-  } else if (event.data.type === "requestSync") {
-    updateFloatingWindow()
-  }
-})
-
-function showSessionMode() {
-  document.getElementById("sessionModeOverlay").style.display = "flex"
-}
-
-function hideSessionMode() {
-  document.getElementById("sessionModeOverlay").style.display = "none"
-}
-
-function handleSessionModeConfirm(event) {
-  if (event && event.target !== event.currentTarget) return
-}
-
-function startQuickSession() {
-  selectedSessionTask = null
-  sessionMode = "quick"
-  setSession("work")
-  hideSessionMode()
-  updateSessionLabel()
-}
-
-function showTaskSelector() {
-  const activeTodos = todos.filter(t => !t.completed)
-  let content = `
-    <div class="task-list">
-  `
-  
-  if (activeTodos.length === 0) {
-    content += '<p style="text-align: center; color: var(--text-muted); padding: 2rem;">No active tasks. Start a quick session instead!</p>'
-  } else {
-    content += activeTodos
-      .map(task => `
-        <button class="task-select-btn" onclick="selectTaskForSession(${task.id}, '${escapeHtml(task.text)}')">
-          <i data-lucide="check"></i>
-          <span>${escapeHtml(task.text)}</span>
-        </button>
-      `)
-      .join("")
-  }
-  
-  content += '</div>'
-  document.getElementById("taskSelectorContent").innerHTML = content
-  document.getElementById("taskSelectorOverlay").style.display = "flex"
-  lucide.createIcons()
-}
-
-function hideTaskSelector() {
-  document.getElementById("taskSelectorOverlay").style.display = "none"
-}
-
-function handleTaskSelectorConfirm(event) {
-  if (event && event.target !== event.currentTarget) return
-}
-
-function selectTaskForSession(taskId, taskText) {
-  selectedSessionTask = { id: taskId, text: taskText }
-  sessionMode = "task"
-  setSession("work")
-  hideTaskSelector()
-  hideSessionMode()
-  updateSessionLabel()
-}
-
-function updateSessionLabel() {
-  const sessionLabel = document.getElementById("sessionLabel")
-  const floatingLabel = document.getElementById("floatingSessionLabel")
-  
-  if (sessionMode === "task" && selectedSessionTask) {
-    sessionLabel.textContent = selectedSessionTask.text
-    if (floatingLabel) floatingLabel.textContent = selectedSessionTask.text.substring(0, 15)
-  } else {
-    sessionLabel.textContent = "Deep Focus Session"
-    if (floatingLabel) floatingLabel.textContent = "Deep Focus"
-  }
-}
+  noiseGainNode.connect(audioL... truncated ...
