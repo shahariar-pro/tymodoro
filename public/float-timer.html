@@ -249,11 +249,16 @@
         function postAction(actionType) {
             if (window.opener) {
                 window.opener.postMessage({ type: actionType }, '*');
+            } else {
+                console.error("Cannot communicate with main window. 'window.opener' is null.");
             }
         }
 
         // Listen for messages from main window
         window.addEventListener('message', (event) => {
+            // IMPORTANT: Add a security check for the origin
+            // if (event.origin !== 'http://your-main-domain.com') return;
+            
             const data = event.data;
             
             if (data.type === 'updateTimer') {
@@ -264,4 +269,36 @@
                 const sessionLabels = {
                     work: 'Deep Focus Session',
                     shortBreak: 'Quick Recharge',
-                    longBreak:.
+                    longBreak: 'Extended Break'
+                };
+                
+                // Use the task text if provided, otherwise default
+                let labelText = data.currentTaskText || sessionLabels[data.currentSession] || 'Deep Focus Session';
+                document.getElementById('sessionLabel').textContent = labelText;
+                
+                // Apply the theme
+                applyTheme(data.currentTheme);
+            }
+        });
+
+        // Initial setup
+        document.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            // Request initial state from main window
+            if (window.opener) {
+                window.opener.postMessage({ type: 'requestSync' }, '*');
+            } else {
+                document.getElementById('sessionLabel').textContent = "Error: Not connected";
+                document.getElementById('info-text').textContent = "Please open from the main app.";
+            }
+        });
+
+        // Notify main window when this window is closed
+        window.addEventListener('beforeunload', () => {
+            if (window.opener) {
+                window.opener.postMessage({ type: 'floatWindowClosed' }, '*');
+            }
+        });
+    </script>
+</body>
+</html>
