@@ -32,6 +32,9 @@ let calendarVisible = false
 const currentDate = new Date()
 let floatingWindow = null // Add floating window reference and management
 
+let selectedSessionTask = null
+let sessionMode = "quick" // "quick" or "task"
+
 const sessionData = {
   startTime: null,
   sessionType: "work",
@@ -45,6 +48,30 @@ let settings = {
   longBreakTime: 15,
   longBreakAfter: 4,
 }
+
+const themes = [
+  { name: "leather", colors: ["#d4793e", "#c65d1b", "#a8623d"] },
+  { name: "diner", colors: ["#8ba8d8", "#9b8b6f", "#6b9b7d"] },
+  { name: "alpine", colors: ["#e8e6e1", "#f5f2ed", "#c8c5bd"] },
+  { name: "dualshot", colors: ["#4a4a4a", "#3a3a3a", "#2a2a2a"] },
+  { name: "fundamentals", colors: ["#a8c686", "#b8a366", "#8a7665"] },
+  { name: "our theme", colors: ["#ff3333", "#ffcc00", "#ffffff"] },
+  { name: "bz mode", colors: ["#0066ff", "#00ccff", "#ffffff"] },
+  { name: "evil eye", colors: ["#00ccff", "#000000", "#ffffff"] },
+  { name: "menthol", colors: ["#00ff99", "#00cc66", "#ffffff"] },
+  { name: "comfy", colors: ["#e0e0e0", "#f5f5f5", "#d9d9d9"] },
+  { name: "trackday", colors: ["#cc3333", "#6699cc", "#99ccff"] },
+  { name: "muted", colors: ["#d0d0d0", "#b0b0b0", "#c0c0c0"] },
+  { name: "red samurai", colors: ["#cc3333", "#ff0000", "#ffffff"] },
+  { name: "sweden", colors: ["#ffff00", "#00ccff", "#ffffff"] },
+  { name: "passion fruit", colors: ["#ff9999", "#ff6699", "#ffffff"] },
+  { name: "suisei", colors: ["#ffffff", "#ffcc00", "#ff9933"] },
+  { name: "striker", colors: ["#0066ff", "#66ccff", "#ffffff"] },
+  { name: "cy red", colors: ["#cc3333", "#ff6666", "#000000"] },
+  { name: "grand prix", colors: ["#ffff00", "#d0d0d0", "#404040"] },
+  { name: "dekb", colors: ["#cc3333", "#00ff00", "#0066ff"] },
+  { name: "hedge", colors: ["#99dd66", "#ccff99", "#ffffff"] },
+]
 
 let stats = {
   totalSessions: 0,
@@ -88,6 +115,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   updateTodoProgress()
   updateTodoListLayout()
   initializeCalendar()
+  setupCalendarDayClick() // Call the new setup function
 
   document.addEventListener("click", initAudioContext, { once: true })
   document.addEventListener("touchstart", initAudioContext, { once: true })
@@ -203,6 +231,39 @@ function setTheme(theme) {
   themePreviewActive = null
 }
 
+function renderThemeList(searchTerm = "") {
+  const themeList = document.getElementById("themeList")
+  const filteredThemes = searchTerm
+    ? themes.filter(t => t.name.toLowerCase().includes(searchTerm.toLowerCase()))
+    : themes
+
+  themeList.innerHTML = filteredThemes
+    .map(theme => `
+      <div class="theme-list-item ${theme.name === currentTheme ? "active" : ""}" 
+           onclick="setTheme('${theme.name}')"
+           onmouseenter="previewTheme('${theme.name}')"
+           onmouseleave="revertTheme()">
+        <span class="theme-name">${theme.name}</span>
+        <div class="theme-color-circles">
+          ${theme.colors.map(color => `<div class="color-circle" style="background-color: ${color};"></div>`).join("")}
+        </div>
+      </div>
+    `)
+    .join("")
+}
+
+function filterThemes(searchTerm) {
+  renderThemeList(searchTerm)
+}
+
+function showThemeSelector() {
+  closeAllPanels()
+  document.getElementById("themeSelector").style.display = "block"
+  renderThemeList()
+  document.getElementById("themeSearchInput").value = ""
+}
+
+
 function updateThemeSelector() {
   const themeOptions = document.querySelectorAll(".theme-option")
   themeOptions.forEach((option) => {
@@ -212,11 +273,6 @@ function updateThemeSelector() {
       option.classList.remove("active")
     }
   })
-}
-
-function showThemeSelector() {
-  closeAllPanels()
-  document.getElementById("themeSelector").style.display = "block"
 }
 
 function hideThemeSelector() {
@@ -286,6 +342,7 @@ function updateCalendarDisplay() {
 
     const date = new Date(year, month, day)
     const dateStr = date.toDateString()
+    dayEl.dataset.date = dateStr // Add data-date attribute
 
     if (dateStr === today.toDateString()) {
       dayEl.classList.add("today")
@@ -469,6 +526,9 @@ function renderTodos() {
             </button>
           `
               : `
+            <button class="todo-action-btn" onclick="addSubtask(${todo.id})" title="Add subtask">
+              <i data-lucide="plus"></i>
+            </button>
             <button class="todo-action-btn" onclick="startEdit(${todo.id})" title="Edit task">
               <i data-lucide="edit-2"></i>
             </button>
@@ -479,6 +539,29 @@ function renderTodos() {
           }
         </div>
       </div>
+      ${
+        todo.subtasks && todo.subtasks.length > 0
+          ? `
+      <div class="subtasks-container">
+        ${todo.subtasks
+          .map(
+            subtask => `
+        <div class="subtask-item ${subtask.completed ? "completed" : ""}">
+          <div class="subtask-checkbox ${subtask.completed ? "checked" : ""}" onclick="toggleSubtask(${todo.id}, ${subtask.id})">
+            ${subtask.completed ? '<i data-lucide="check"></i>' : ""}
+          </div>
+          <span class="subtask-text">${escapeHtml(subtask.text)}</span>
+          <button class="subtask-delete-btn" onclick="deleteSubtask(${todo.id}, ${subtask.id})">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        `
+          )
+          .join("")}
+      </div>
+      `
+          : ""
+      }
     `,
       )
       .join("")}
@@ -506,7 +589,85 @@ function escapeHtml(text) {
   return div.innerHTML
 }
 
+function addSubtask(parentTodoId) {
+  const todo = todos.find(t => t.id === parentTodoId)
+  if (!todo) return
+  
+  if (!todo.subtasks) todo.subtasks = []
+  
+  const subtaskText = prompt("Add a subtask:")
+  if (!subtaskText || subtaskText.trim() === "") return
+  
+  const subtask = {
+    id: Date.now(),
+    text: subtaskText.trim(),
+    completed: false
+  }
+  
+  todo.subtasks.push(subtask)
+  saveTodos()
+  renderTodos()
+}
+
+function toggleSubtask(parentTodoId, subtaskId) {
+  const todo = todos.find(t => t.id === parentTodoId)
+  if (!todo || !todo.subtasks) return
+  
+  const subtask = todo.subtasks.find(s => s.id === subtaskId)
+  if (subtask) {
+    subtask.completed = !subtask.completed
+    saveTodos()
+    renderTodos()
+  }
+}
+
+function deleteSubtask(parentTodoId, subtaskId) {
+  const todo = todos.find(t => t.id === parentTodoId)
+  if (!todo || !todo.subtasks) return
+  
+  todo.subtasks = todo.subtasks.filter(s => s.id !== subtaskId)
+  saveTodos()
+  renderTodos()
+}
+
+function setupCalendarDayClick() {
+  document.querySelectorAll(".calendar-day").forEach(day => {
+    day.addEventListener("click", function() {
+      const dateStr = this.dataset.date
+      if (dateStr) {
+        showTasksForDate(dateStr)
+      }
+    })
+  })
+}
+
+function showTasksForDate(dateStr) {
+  // Find tasks for this date or show option to add new task
+  closeAllPanels()
+  document.getElementById("modalTitle").textContent = `Tasks for ${new Date(dateStr).toLocaleDateString()}`
+  document.getElementById("modalContent").innerHTML = `
+    <div class="date-tasks">
+      <p style="color: var(--text-muted); margin-bottom: 1rem;">Click "Go to Todo List" to manage tasks for this date.</p>
+      <button class="apply-btn" onclick="goToTodoListTab()">Go to Todo List</button>
+    </div>
+  `
+  document.getElementById("modalOverlay").style.display = "flex"
+}
+
+function goToTodoListTab() {
+  hideModal()
+  toggleTodoList()
+}
+
+
 async function toggleTimer() {
+  if (!isRunning && currentSession === "work" && !selectedSessionTask) {
+    // If starting a new work session without a selected task, show mode selector
+    showSessionMode()
+    return
+  }
+  
+  // ... existing timer code ...
   if (isRunning) {
     clearInterval(timerInterval)
     pausedTime += Date.now() - startTime
@@ -584,11 +745,22 @@ function completeSession() {
   }
   saveStats()
   updateCalendarDisplay()
+  // Reset task selection after a work session
+  selectedSessionTask = null
+  sessionMode = "quick"
 }
 
 function setSession(session) {
   currentSession = session
+  
+  // Reset task selection if switching to break or if not starting a work session with a selected task
+  if (session !== "work" || !selectedSessionTask) {
+      selectedSessionTask = null
+      sessionMode = "quick"
+  }
+
   const sessionLabel = document.getElementById("sessionLabel")
+  const floatingLabel = document.getElementById("floatingSessionLabel")
 
   startTime = null
   pausedTime = 0
@@ -596,15 +768,25 @@ function setSession(session) {
   if (session === "work") {
     timeLeft = settings.focusTime * 60
     totalTime = settings.focusTime * 60
-    sessionLabel.textContent = "Deep Focus Session"
+    
+    // Use selected task if available
+    if (selectedSessionTask) {
+        sessionLabel.textContent = selectedSessionTask.text
+        if (floatingLabel) floatingLabel.textContent = selectedSessionTask.text.substring(0, 15)
+    } else {
+        sessionLabel.textContent = "Deep Focus Session"
+        if (floatingLabel) floatingLabel.textContent = "Deep Focus"
+    }
   } else if (session === "shortBreak") {
     timeLeft = settings.shortBreakTime * 60
     totalTime = settings.shortBreakTime * 60
     sessionLabel.textContent = "Quick Recharge"
+    if (floatingLabel) floatingLabel.textContent = "Break"
   } else {
     timeLeft = settings.longBreakTime * 60
     totalTime = settings.longBreakTime * 60
     sessionLabel.textContent = "Extended Break"
+    if (floatingLabel) floatingLabel.textContent = "Break"
   }
   updateDisplay()
   updateFloatingWindow() // Sync after session change
@@ -916,6 +1098,8 @@ document.addEventListener("keydown", (e) => {
   } else if (e.code === "Escape") {
     hideModal()
     hideThemeSelector()
+    hideSessionMode() // Close session mode on escape
+    hideTaskSelector() // Close task selector on escape
   }
 })
 
@@ -1018,7 +1202,10 @@ function handleDrop(event) {
   event.preventDefault()
 
   const draggedId = Number.parseInt(draggedElement.dataset.id)
-  const targetId = Number.parseInt(event.target.closest(".todo-item").dataset.id)
+  const targetElement = event.target.closest(".todo-item")
+  if (!targetElement) return // Handle cases where drop target is not a todo-item
+
+  const targetId = Number.parseInt(targetElement.dataset.id)
 
   if (draggedId !== targetId) {
     reorderTodos(draggedId, targetId)
@@ -1503,3 +1690,78 @@ window.addEventListener("message", (event) => {
     updateFloatingWindow()
   }
 })
+
+function showSessionMode() {
+  document.getElementById("sessionModeOverlay").style.display = "flex"
+}
+
+function hideSessionMode() {
+  document.getElementById("sessionModeOverlay").style.display = "none"
+}
+
+function handleSessionModeConfirm(event) {
+  if (event && event.target !== event.currentTarget) return
+}
+
+function startQuickSession() {
+  selectedSessionTask = null
+  sessionMode = "quick"
+  setSession("work")
+  hideSessionMode()
+  updateSessionLabel()
+}
+
+function showTaskSelector() {
+  const activeTodos = todos.filter(t => !t.completed)
+  let content = `
+    <div class="task-list">
+  `
+  
+  if (activeTodos.length === 0) {
+    content += '<p style="text-align: center; color: var(--text-muted); padding: 2rem;">No active tasks. Start a quick session instead!</p>'
+  } else {
+    content += activeTodos
+      .map(task => `
+        <button class="task-select-btn" onclick="selectTaskForSession(${task.id}, '${escapeHtml(task.text)}')">
+          <i data-lucide="check"></i>
+          <span>${escapeHtml(task.text)}</span>
+        </button>
+      `)
+      .join("")
+  }
+  
+  content += '</div>'
+  document.getElementById("taskSelectorContent").innerHTML = content
+  document.getElementById("taskSelectorOverlay").style.display = "flex"
+  lucide.createIcons()
+}
+
+function hideTaskSelector() {
+  document.getElementById("taskSelectorOverlay").style.display = "none"
+}
+
+function handleTaskSelectorConfirm(event) {
+  if (event && event.target !== event.currentTarget) return
+}
+
+function selectTaskForSession(taskId, taskText) {
+  selectedSessionTask = { id: taskId, text: taskText }
+  sessionMode = "task"
+  setSession("work")
+  hideTaskSelector()
+  hideSessionMode()
+  updateSessionLabel()
+}
+
+function updateSessionLabel() {
+  const sessionLabel = document.getElementById("sessionLabel")
+  const floatingLabel = document.getElementById("floatingSessionLabel")
+  
+  if (sessionMode === "task" && selectedSessionTask) {
+    sessionLabel.textContent = selectedSessionTask.text
+    if (floatingLabel) floatingLabel.textContent = selectedSessionTask.text.substring(0, 15)
+  } else {
+    sessionLabel.textContent = "Deep Focus Session"
+    if (floatingLabel) floatingLabel.textContent = "Deep Focus"
+  }
+}
