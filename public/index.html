@@ -301,4 +301,68 @@
                 <button class="theme-option" data-theme="blush" onclick="setTheme('blush')" onmouseenter="previewTheme('blush')" onmouseleave="revertTheme()">
                     <span>Blush</span>
                     <div class="theme-dots">
-                        <span class... truncated ...
+                        <span class_name="theme-dot" style="background: #faf8f7; border-color: #e8d8d1;"></span>
+                        <span class_name="theme-dot" style="background: #6b5b52;"></span>
+                        <span class_name="theme-dot" style="background: #f8a8d8;"></span>
+                    </div>
+                </button>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="skipModalOverlay" onclick="handleSkipConfirm(event)">
+            <div class="modal" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <div class="modal-title">Skip Session?</div>
+                </div>
+                <div id="skipModalContent">
+                    <p>This session is too short to be counted in your statistics. You've completed <span id="sessionPercent">0</span>% of the session.</p>
+                    <div class="modal-actions">
+                        <button class="modal-btn cancel" onclick="cancelSkip()">Continue Session</button>
+                        <button class="modal-btn danger" onclick="confirmSkip()">Skip Anyway</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="modal-overlay" id="modalOverlay" onclick="hideModal(event)">
+            <div class="modal" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <div class="modal-title" id="modalTitle">Statistics</div>
+                    <button class="close-btn" onclick="hideModal()">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                
+                <div id="modalContent">
+                    </div>
+            </div>
+        </div>
+
+        <div class="floating-widget" id="floatingWidget">
+            <div class="floating-widget-header">
+                <span id="floatingSessionLabel">Deep Focus</span>
+                <button class="floating-close-btn" onclick="closeFloatingWidget()">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="floating-timer-display">
+                <div id="floatingTimerTime">25:00</div>
+            </div>
+            <div class="floating-controls">
+                <button class="floating-btn" onclick="toggleTimerFromWidget()">
+                    <i data-lucide="play" id="floatingPlayIcon"></i>
+                </button>
+                <button class="floating-btn" onclick="skipSessionFromWidget()">
+                    <i data-lucide="skip-forward"></i>
+                </button>
+            </div>
+            <div class="floating-resize-handle"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        lucide.createIcons();
+    </script>
+</body>
+</html>
