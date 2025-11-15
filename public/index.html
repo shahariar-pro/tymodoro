@@ -10,7 +10,6 @@
 </head>
 <body data-theme="dark">
     <div class="app">
-        <!-- Header -->
         <div class="header">
             <div class="logo-container">
                 <div class="logo">TYMODORO</div>
@@ -44,9 +43,7 @@
             </div>
         </div>
 
-        <!-- Main Content -->
         <div class="main-content timer-only" id="mainContent">
-            <!-- Calendar Section -->
             <div class="calendar-section hidden" id="calendarSection">
                 <div class="calendar-header">
                     <h2 class="calendar-title">
@@ -84,10 +81,9 @@
                 </div>
             </div>
 
-            <!-- Todo List Section -->
             <div class="todo-section hidden" id="todoSection">
                 <div class="todo-header">
-                    <h2 class="todo-title">
+                    <h2 class="todo-title" id="todoTitle">
                         <i data-lucide="check-square"></i>
                         Today's Focus
                     </h2>
@@ -114,8 +110,7 @@
                 </div>
                 
                 <div class="todo-list" id="todoList">
-                    <!-- Todos will be dynamically inserted here -->
-                </div>
+                    </div>
                 
                 <div class="todo-footer">
                     <button class="clear-completed-btn" onclick="clearCompleted()" id="clearCompletedBtn">
@@ -125,7 +120,6 @@
                 </div>
             </div>
 
-            <!-- Timer Section -->
             <div class="timer-section">
                 <div class="session-label" id="sessionLabel">Deep Focus Session</div>
                 
@@ -159,12 +153,10 @@
             </div>
         </div>
 
-        <!-- Notification Sound Indicator -->
         <div class="sound-indicator" id="soundIndicator" onclick="toggleSound()" title="Toggle notification sound">
             <i data-lucide="bell"></i>
         </div>
 
-        <!-- White Noise Controls -->
         <div class="white-noise-controls" id="whiteNoiseControls" style="display: none;">
             <div class="noise-header">
                 <h3>Ambient Sounds</h3>
@@ -177,7 +169,6 @@
                 </button>
             </div>
             
-            <!-- Regular Sounds -->
             <div class="noise-content" id="regularContent">
                 <div class="noise-options">
                     <button class="noise-btn" data-sound="storm" onclick="selectNoise('storm')">
@@ -207,7 +198,6 @@
                 </div>
             </div>
             
-            <!-- Binaural Beats -->
             <div class="noise-content hidden" id="binauralContent">
                 <div class="noise-options">
                     <button class="noise-btn" data-sound="gamma40" onclick="selectNoise('gamma40')">
@@ -244,132 +234,71 @@
             </div>
         </div>
 
-        <!-- Theme Selector with Live Preview -->
         <div class="theme-selector" id="themeSelector" style="display: none;">
             <div class="theme-header">
-                <h3>Theme</h3>
+                <h3>Choose Theme</h3>
                 <button class="close-theme-btn" onclick="hideThemeSelector()">
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            
-            <!-- Added search input for themes -->
-            <div class="theme-search-container">
-                <i data-lucide="search"></i>
-                <input 
-                    type="text" 
-                    id="themeSearchInput" 
-                    class="theme-search-input"
-                    placeholder="Theme..."
-                    oninput="filterThemes(this.value)"
-                >
-            </div>
-
-            <!-- Changed to vertical list layout with theme colors displayed as circles -->
-            <div class="theme-list" id="themeList">
-                <!-- Themes will be dynamically rendered here -->
-            </div>
-        </div>
-
-        <!-- Added session mode selector modal -->
-        <div class="modal-overlay" id="sessionModeOverlay" onclick="handleSessionModeConfirm(event)">
-            <div class="modal" onclick="event.stopPropagation()">
-                <div class="modal-header">
-                    <div class="modal-title">Start Session</div>
-                    <button class="close-btn" onclick="hideSessionMode()">
-                        <i data-lucide="x"></i>
-                    </button>
-                </div>
-                <div id="sessionModeContent">
-                    <div class="session-mode-options">
-                        <button class="session-mode-btn" onclick="startQuickSession()">
-                            <i data-lucide="lightning"></i>
-                            <span>Quick Session</span>
-                            <small>No specific task</small>
-                        </button>
-                        <button class="session-mode-btn" onclick="showTaskSelector()">
-                            <i data-lucide="check-square"></i>
-                            <span>Task Session</span>
-                            <small>Select a task</small>
-                        </button>
+            <div class="theme-grid">
+                <button class="theme-option" data-theme="light" onclick="setTheme('light')" onmouseenter="previewTheme('light')" onmouseleave="revertTheme()">
+                    <span>Light</span>
+                    <div class="theme-dots">
+                        <span class="theme-dot" style="background: #ffffff; border-color: #e5e7eb;"></span>
+                        <span class="theme-dot" style="background: #6b7280;"></span>
+                        <span class="theme-dot" style="background: #000000;"></span>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Added task selector modal for session -->
-        <div class="modal-overlay" id="taskSelectorOverlay" onclick="handleTaskSelectorConfirm(event)">
-            <div class="modal" onclick="event.stopPropagation()">
-                <div class="modal-header">
-                    <div class="modal-title">Select Task</div>
-                    <button class="close-btn" onclick="hideTaskSelector()">
-                        <i data-lucide="x"></i>
-                    </button>
-                </div>
-                <div id="taskSelectorContent">
-                    <!-- Tasks will be listed here -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Skip Confirmation Modal -->
-        <div class="modal-overlay" id="skipModalOverlay" onclick="handleSkipConfirm(event)">
-            <div class="modal" onclick="event.stopPropagation()">
-                <div class="modal-header">
-                    <div class="modal-title">Skip Session?</div>
-                </div>
-                <div id="skipModalContent">
-                    <p>This session is too short to be counted in your statistics. You've completed <span id="sessionPercent">0</span>% of the session.</p>
-                    <div class="modal-actions">
-                        <button class="modal-btn cancel" onclick="cancelSkip()">Continue Session</button>
-                        <button class="modal-btn danger" onclick="confirmSkip()">Skip Anyway</button>
+                </button>
+                <button class="theme-option active" data-theme="dark" onclick="setTheme('dark')" onmouseenter="previewTheme('dark')" onmouseleave="revertTheme()">
+                    <span>Dark</span>
+                    <div class="theme-dots">
+                        <span class="theme-dot" style="background: #000000;"></span>
+                        <span class="theme-dot" style="background: #888888;"></span>
+                        <span class="theme-dot" style="background: #ffffff;"></span>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Main Modal -->
-        <div class="modal-overlay" id="modalOverlay" onclick="hideModal(event)">
-            <div class="modal" onclick="event.stopPropagation()">
-                <div class="modal-header">
-                    <div class="modal-title" id="modalTitle">Statistics</div>
-                    <button class="close-btn" onclick="hideModal()">
-                        <i data-lucide="x"></i>
-                    </button>
-                </div>
-                
-                <div id="modalContent">
-                    <!-- Content will be dynamically inserted here -->
-                </div>
-            </div>
-        </div>
-
-        <!-- Floating Timer Widget -->
-        <div class="floating-widget" id="floatingWidget">
-            <div class="floating-widget-header">
-                <span id="floatingSessionLabel">Deep Focus</span>
-                <button class="floating-close-btn" onclick="closeFloatingWidget()">
-                    <i data-lucide="x"></i>
                 </button>
-            </div>
-            <div class="floating-timer-display">
-                <div id="floatingTimerTime">25:00</div>
-            </div>
-            <div class="floating-controls">
-                <button class="floating-btn" onclick="toggleTimerFromWidget()">
-                    <i data-lucide="play" id="floatingPlayIcon"></i>
+                <button class="theme-option" data-theme="ocean" onclick="setTheme('ocean')" onmouseenter="previewTheme('ocean')" onmouseleave="revertTheme()">
+                    <span>Ocean</span>
+                    <div class="theme-dots">
+                        <span class="theme-dot" style="background: #0f172a;"></span>
+                        <span class="theme-dot" style="background: #334155;"></span>
+                        <span class="theme-dot" style="background: #0ea5e9;"></span>
+                    </div>
                 </button>
-                <button class="floating-btn" onclick="skipSessionFromWidget()">
-                    <i data-lucide="skip-forward"></i>
+                <button class="theme-option" data-theme="forest" onclick="setTheme('forest')" onmouseenter="previewTheme('forest')" onmouseleave="revertTheme()">
+                    <span>Forest</span>
+                    <div class="theme-dots">
+                        <span class="theme-dot" style="background: #0f1419;"></span>
+                        <span class="theme-dot" style="background: #2d3748;"></span>
+                        <span class="theme-dot" style="background: #48bb78;"></span>
+                    </div>
                 </button>
-            </div>
-            <div class="floating-resize-handle"></div>
-        </div>
-    </div>
-
-    <script src="script.js"></script>
-    <script>
-        lucide.createIcons();
-    </script>
-</body>
-</html>
+                <button class="theme-option" data-theme="sunset" onclick="setTheme('sunset')" onmouseenter="previewTheme('sunset')" onmouseleave="revertTheme()">
+                    <span>Sunset</span>
+                    <div class="theme-dots">
+                        <span class="theme-dot" style="background: #1a1625;"></span>
+                        <span class="theme-dot" style="background: #553c9a;"></span>
+                        <span class="theme-dot" style="background: #f59e0b;"></span>
+                    </div>
+                </button>
+                <button class="theme-option" data-theme="purple" onclick="setTheme('purple')" onmouseenter="previewTheme('purple')" onmouseleave="revertTheme()">
+                    <span>Purple</span>
+                    <div class="theme-dots">
+                        <span class="theme-dot" style="background: #1e1b4b;"></span>
+                        <span class="theme-dot" style="background: #3730a3;"></span>
+                        <span class="theme-dot" style="background: #a855f7;"></span>
+                    </div>
+                </button>
+                <button class="theme-option" data-theme="rose" onclick="setTheme('rose')" onmouseenter="previewTheme('rose')" onmouseleave="revertTheme()">
+                    <span>Rose</span>
+                    <div class="theme-dots">
+                        <span class="theme-dot" style="background: #1f0f1a;"></span>
+                        <span class="theme-dot" style="background: #5a2f42;"></span>
+                        <span class="theme-dot" style="background: #ec4899;"></span>
+                    </div>
+                </button>
+                <button class="theme-option" data-theme="blush" onclick="setTheme('blush')" onmouseenter="previewTheme('blush')" onmouseleave="revertTheme()">
+                    <span>Blush</span>
+                    <div class="theme-dots">
+                        <span class... truncated ...
