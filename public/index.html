@@ -247,44 +247,68 @@
         <!-- Theme Selector with Live Preview -->
         <div class="theme-selector" id="themeSelector" style="display: none;">
             <div class="theme-header">
-                <h3>Choose Theme</h3>
+                <h3>Theme</h3>
                 <button class="close-theme-btn" onclick="hideThemeSelector()">
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            <div class="theme-grid">
-                <button class="theme-option" data-theme="light" onclick="setTheme('light')" onmouseenter="previewTheme('light')" onmouseleave="revertTheme()">
-                    <div class="theme-preview light-preview"></div>
-                    <span>Light</span>
-                </button>
-                <button class="theme-option active" data-theme="dark" onclick="setTheme('dark')" onmouseenter="previewTheme('dark')" onmouseleave="revertTheme()">
-                    <div class="theme-preview dark-preview"></div>
-                    <span>Dark</span>
-                </button>
-                <button class="theme-option" data-theme="ocean" onclick="setTheme('ocean')" onmouseenter="previewTheme('ocean')" onmouseleave="revertTheme()">
-                    <div class="theme-preview ocean-preview"></div>
-                    <span>Ocean</span>
-                </button>
-                <button class="theme-option" data-theme="forest" onclick="setTheme('forest')" onmouseenter="previewTheme('forest')" onmouseleave="revertTheme()">
-                    <div class="theme-preview forest-preview"></div>
-                    <span>Forest</span>
-                </button>
-                <button class="theme-option" data-theme="sunset" onclick="setTheme('sunset')" onmouseenter="previewTheme('sunset')" onmouseleave="revertTheme()">
-                    <div class="theme-preview sunset-preview"></div>
-                    <span>Sunset</span>
-                </button>
-                <button class="theme-option" data-theme="purple" onclick="setTheme('purple')" onmouseenter="previewTheme('purple')" onmouseleave="revertTheme()">
-                    <div class="theme-preview purple-preview"></div>
-                    <span>Purple</span>
-                </button>
-                <button class="theme-option" data-theme="rose" onclick="setTheme('rose')" onmouseenter="previewTheme('rose')" onmouseleave="revertTheme()">
-                    <div class="theme-preview rose-preview"></div>
-                    <span>Rose</span>
-                </button>
-                <button class="theme-option" data-theme="blush" onclick="setTheme('blush')" onmouseenter="previewTheme('blush')" onmouseleave="revertTheme()">
-                    <div class="theme-preview blush-preview"></div>
-                    <span>Blush</span>
-                </button>
+            
+            <!-- Added search input for themes -->
+            <div class="theme-search-container">
+                <i data-lucide="search"></i>
+                <input 
+                    type="text" 
+                    id="themeSearchInput" 
+                    class="theme-search-input"
+                    placeholder="Theme..."
+                    oninput="filterThemes(this.value)"
+                >
+            </div>
+
+            <!-- Changed to vertical list layout with theme colors displayed as circles -->
+            <div class="theme-list" id="themeList">
+                <!-- Themes will be dynamically rendered here -->
+            </div>
+        </div>
+
+        <!-- Added session mode selector modal -->
+        <div class="modal-overlay" id="sessionModeOverlay" onclick="handleSessionModeConfirm(event)">
+            <div class="modal" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <div class="modal-title">Start Session</div>
+                    <button class="close-btn" onclick="hideSessionMode()">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div id="sessionModeContent">
+                    <div class="session-mode-options">
+                        <button class="session-mode-btn" onclick="startQuickSession()">
+                            <i data-lucide="lightning"></i>
+                            <span>Quick Session</span>
+                            <small>No specific task</small>
+                        </button>
+                        <button class="session-mode-btn" onclick="showTaskSelector()">
+                            <i data-lucide="check-square"></i>
+                            <span>Task Session</span>
+                            <small>Select a task</small>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Added task selector modal for session -->
+        <div class="modal-overlay" id="taskSelectorOverlay" onclick="handleTaskSelectorConfirm(event)">
+            <div class="modal" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <div class="modal-title">Select Task</div>
+                    <button class="close-btn" onclick="hideTaskSelector()">
+                        <i data-lucide="x"></i>
+                    </button>
+                </div>
+                <div id="taskSelectorContent">
+                    <!-- Tasks will be listed here -->
+                </div>
             </div>
         </div>
 
