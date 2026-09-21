@@ -2,7 +2,9 @@
   "name": "tymodoro",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "build": "echo 'no build script'"
+    "build": "echo 'no build script'",
+    "test": "node --test ../tests/*.test.mjs"
   }
 }

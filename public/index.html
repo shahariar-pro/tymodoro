@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TYMODORO - Focus Timer</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23000' stroke='%23fff' stroke-width='3'/><circle cx='50' cy='50' r='20' fill='%23fff'/></svg>" type="image/svg+xml">
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="css/style.css">
     <script src="vendor/lucide.min.js"></script>
 </head>
 <body data-theme="dark">
@@ -16,28 +16,28 @@
                 <div class="logo-dot"></div>
             </div>
             <div class="header-controls">
-                <button class="icon-btn" onclick="toggleTodoList()" title="Toggle todo list" id="todoToggleBtn">
+                <button class="icon-btn" title="Toggle todo list" id="todoToggleBtn">
                     <i data-lucide="list-todo"></i>
                 </button>
-                <button class="icon-btn" onclick="toggleCalendar()" title="Calendar" id="calendarBtn">
+                <button class="icon-btn" title="Calendar" id="calendarBtn">
                     <i data-lucide="calendar"></i>
                 </button>
-                <button class="icon-btn" onclick="toggleWhiteNoise()" title="Toggle ambient sounds" id="whiteNoiseBtn">
+                <button class="icon-btn" title="Toggle ambient sounds" id="whiteNoiseBtn">
                     <i data-lucide="waves"></i>
                 </button>
-                <button class="icon-btn" onclick="showThemeSelector()" title="Change theme" id="themeBtn">
+                <button class="icon-btn" title="Change theme" id="themeBtn">
                     <i data-lucide="palette"></i>
                 </button>
-                <button class="icon-btn" onclick="showStats()" title="Statistics">
+                <button class="icon-btn" title="Statistics" id="statsBtn">
                     <i data-lucide="bar-chart-3"></i>
                 </button>
-                <button class="icon-btn" onclick="showSettings()" title="Settings">
+                <button class="icon-btn" title="Settings" id="settingsBtn">
                     <i data-lucide="settings"></i>
                 </button>
-                <button class="icon-btn" onclick="showAbout()" title="About">
+                <button class="icon-btn" title="About" id="aboutBtn">
                     <i data-lucide="info"></i>
                 </button>
-                <button class="icon-btn" onclick="openFloatingWindow()" title="Open in Window" id="floatingWindowBtn">
+                <button class="icon-btn" title="Open in Window" id="floatingWindowBtn">
                     <i data-lucide="external-link"></i>
                 </button>
             </div>
@@ -51,11 +51,11 @@
                         Productivity Calendar
                     </h2>
                     <div class="calendar-nav">
-                        <button class="calendar-nav-btn" onclick="prevMonth()">
+                        <button class="calendar-nav-btn" id="prevMonthBtn" title="Previous Month">
                             <i data-lucide="chevron-left"></i>
                         </button>
                         <span id="currentMonthYear"></span>
-                        <button class="calendar-nav-btn" onclick="nextMonth()">
+                        <button class="calendar-nav-btn" id="nextMonthBtn" title="Next Month">
                             <i data-lucide="chevron-right"></i>
                         </button>
                     </div>
@@ -104,16 +104,16 @@
                         <option value="medium" selected>Medium</option>
                         <option value="high">High</option>
                     </select>
-                    <button class="add-todo-btn" onclick="addTodo()" id="addTodoBtn">
+                    <button class="add-todo-btn" id="addTodoBtn" title="Add task">
                         <i data-lucide="plus"></i>
                     </button>
                 </div>
                 
                 <div class="todo-list" id="todoList">
-                    </div>
+                </div>
                 
                 <div class="todo-footer">
-                    <button class="clear-completed-btn" onclick="clearCompleted()" id="clearCompletedBtn">
+                    <button class="clear-completed-btn" id="clearCompletedBtn">
                         <i data-lucide="trash-2"></i>
                         Clear Completed
                     </button>
@@ -136,16 +136,16 @@
                     </div>
                 </div>
 
-                <button class="play-btn" id="playBtn" onclick="toggleTimer()">
+                <button class="play-btn" id="playBtn" title="Start/Pause timer">
                     <i data-lucide="play" id="playIcon"></i>
                 </button>
 
                 <div class="control-buttons">
-                    <button class="ctrl-btn" onclick="resetTimer()">
+                    <button class="ctrl-btn" id="resetBtn" title="Reset timer">
                         <i data-lucide="rotate-ccw"></i>
                         Reset
                     </button>
-                    <button class="ctrl-btn" onclick="skipSession()">
+                    <button class="ctrl-btn" id="skipBtn" title="Skip session">
                         <i data-lucide="skip-forward"></i>
                         Skip
                     </button>
@@ -153,7 +153,7 @@
             </div>
         </div>
 
-        <div class="sound-indicator" id="soundIndicator" onclick="toggleSound()" title="Toggle notification sound">
+        <div class="sound-indicator" id="soundIndicator" title="Toggle notification sound">
             <i data-lucide="bell"></i>
         </div>
 
@@ -161,37 +161,37 @@
             <div class="noise-header">
                 <h3>Ambient Sounds</h3>
                 <div class="noise-tabs">
-                    <button class="noise-tab active" onclick="switchNoiseTab('regular')" id="regularTab">Regular</button>
-                    <button class="noise-tab" onclick="switchNoiseTab('binaural')" id="binauralTab">Binaural</button>
+                    <button class="noise-tab active" id="regularTab">Regular</button>
+                    <button class="noise-tab" id="binauralTab">Binaural</button>
                 </div>
-                <button class="close-noise-btn" onclick="toggleWhiteNoise()">
+                <button class="close-noise-btn" id="closeNoiseBtn" title="Close ambient sounds">
                     <i data-lucide="x"></i>
                 </button>
             </div>
             
             <div class="noise-content" id="regularContent">
                 <div class="noise-options">
-                    <button class="noise-btn" data-sound="storm" onclick="selectNoise('storm')">
+                    <button class="noise-btn" data-sound="storm">
                         <i data-lucide="cloud-lightning"></i>
                         <span>Storm</span>
                     </button>
-                    <button class="noise-btn" data-sound="forest" onclick="selectNoise('forest')">
+                    <button class="noise-btn" data-sound="forest">
                         <i data-lucide="trees"></i>
                         <span>Forest</span>
                     </button>
-                    <button class="noise-btn" data-sound="ocean" onclick="selectNoise('ocean')">
+                    <button class="noise-btn" data-sound="ocean">
                         <i data-lucide="waves"></i>
                         <span>Ocean</span>
                     </button>
-                    <button class="noise-btn" data-sound="coffee" onclick="selectNoise('coffee')">
+                    <button class="noise-btn" data-sound="coffee">
                         <i data-lucide="coffee"></i>
                         <span>Café</span>
                     </button>
-                    <button class="noise-btn" data-sound="fire" onclick="selectNoise('fire')">
+                    <button class="noise-btn" data-sound="fire">
                         <i data-lucide="flame"></i>
                         <span>Fireplace</span>
                     </button>
-                    <button class="noise-btn" data-sound="wind" onclick="selectNoise('wind')">
+                    <button class="noise-btn" data-sound="wind">
                         <i data-lucide="wind"></i>
                         <span>Wind</span>
                     </button>
@@ -200,27 +200,27 @@
             
             <div class="noise-content hidden" id="binauralContent">
                 <div class="noise-options">
-                    <button class="noise-btn" data-sound="gamma40" onclick="selectNoise('gamma40')">
+                    <button class="noise-btn" data-sound="gamma40">
                         <i data-lucide="zap"></i>
                         <span>40Hz Gamma</span>
                     </button>
-                    <button class="noise-btn" data-sound="beta20" onclick="selectNoise('beta20')">
+                    <button class="noise-btn" data-sound="beta20">
                         <i data-lucide="brain"></i>
                         <span>20Hz Beta</span>
                     </button>
-                    <button class="noise-btn" data-sound="alpha10" onclick="selectNoise('alpha10')">
+                    <button class="noise-btn" data-sound="alpha10">
                         <i data-lucide="circle-dot"></i>
                         <span>10Hz Alpha</span>
                     </button>
-                    <button class="noise-btn" data-sound="theta6" onclick="selectNoise('theta6')">
+                    <button class="noise-btn" data-sound="theta6">
                         <i data-lucide="moon"></i>
                         <span>6Hz Theta</span>
                     </button>
-                    <button class="noise-btn" data-sound="delta3" onclick="selectNoise('delta3')">
+                    <button class="noise-btn" data-sound="delta3">
                         <i data-lucide="bed"></i>
                         <span>3Hz Delta</span>
                     </button>
-                    <button class="noise-btn" data-sound="focus15" onclick="selectNoise('focus15')">
+                    <button class="noise-btn" data-sound="focus15">
                         <i data-lucide="target"></i>
                         <span>15Hz Focus</span>
                     </button>
@@ -229,7 +229,7 @@
             
             <div class="volume-control">
                 <i data-lucide="volume-1"></i>
-                <input type="range" id="noiseVolume" min="0" max="100" value="30" oninput="updateNoiseVolume(this.value)">
+                <input type="range" id="noiseVolume" min="0" max="100" value="30">
                 <i data-lucide="volume-2"></i>
             </div>
         </div>
@@ -237,12 +237,12 @@
         <div class="theme-selector" id="themeSelector" style="display: none;">
             <div class="theme-header">
                 <h3>Choose Theme</h3>
-                <button class="close-theme-btn" onclick="hideThemeSelector()">
+                <button class="close-theme-btn" id="closeThemeBtn" title="Close themes">
                     <i data-lucide="x"></i>
                 </button>
             </div>
             <div class="theme-grid">
-                <button class="theme-option" data-theme="light" onclick="setTheme('light')" onmouseenter="previewTheme('light')" onmouseleave="revertTheme()">
+                <button class="theme-option" data-theme="light">
                     <span>Light</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #ffffff; border-color: #e5e7eb;"></span>
@@ -250,7 +250,7 @@
                         <span class="theme-dot" style="background: #000000;"></span>
                     </div>
                 </button>
-                <button class="theme-option active" data-theme="dark" onclick="setTheme('dark')" onmouseenter="previewTheme('dark')" onmouseleave="revertTheme()">
+                <button class="theme-option active" data-theme="dark">
                     <span>Dark</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #000000;"></span>
@@ -258,7 +258,7 @@
                         <span class="theme-dot" style="background: #ffffff;"></span>
                     </div>
                 </button>
-                <button class="theme-option" data-theme="ocean" onclick="setTheme('ocean')" onmouseenter="previewTheme('ocean')" onmouseleave="revertTheme()">
+                <button class="theme-option" data-theme="ocean">
                     <span>Ocean</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #0f172a;"></span>
@@ -266,7 +266,7 @@
                         <span class="theme-dot" style="background: #0ea5e9;"></span>
                     </div>
                 </button>
-                <button class="theme-option" data-theme="forest" onclick="setTheme('forest')" onmouseenter="previewTheme('forest')" onmouseleave="revertTheme()">
+                <button class="theme-option" data-theme="forest">
                     <span>Forest</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #0f1419;"></span>
@@ -274,7 +274,7 @@
                         <span class="theme-dot" style="background: #48bb78;"></span>
                     </div>
                 </button>
-                <button class="theme-option" data-theme="sunset" onclick="setTheme('sunset')" onmouseenter="previewTheme('sunset')" onmouseleave="revertTheme()">
+                <button class="theme-option" data-theme="sunset">
                     <span>Sunset</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #1a1625;"></span>
@@ -282,7 +282,7 @@
                         <span class="theme-dot" style="background: #f59e0b;"></span>
                     </div>
                 </button>
-                <button class="theme-option" data-theme="purple" onclick="setTheme('purple')" onmouseenter="previewTheme('purple')" onmouseleave="revertTheme()">
+                <button class="theme-option" data-theme="purple">
                     <span>Purple</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #1e1b4b;"></span>
@@ -290,7 +290,7 @@
                         <span class="theme-dot" style="background: #a855f7;"></span>
                     </div>
                 </button>
-                <button class="theme-option" data-theme="rose" onclick="setTheme('rose')" onmouseenter="previewTheme('rose')" onmouseleave="revertTheme()">
+                <button class="theme-option" data-theme="rose">
                     <span>Rose</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #1f0f1a;"></span>
@@ -298,7 +298,7 @@
                         <span class="theme-dot" style="background: #ec4899;"></span>
                     </div>
                 </button>
-                <button class="theme-option" data-theme="blush" onclick="setTheme('blush')" onmouseenter="previewTheme('blush')" onmouseleave="revertTheme()">
+                <button class="theme-option" data-theme="blush">
                     <span>Blush</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #faf8f7; border-color: #e8d8d1;"></span>
@@ -309,39 +309,39 @@
             </div>
         </div>
 
-        <div class="modal-overlay" id="skipModalOverlay" onclick="handleSkipConfirm(event)">
-            <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-overlay" id="skipModalOverlay">
+            <div class="modal">
                 <div class="modal-header">
                     <div class="modal-title">Skip Session?</div>
                 </div>
                 <div id="skipModalContent">
                     <p>This session is too short to be counted in your statistics. You've completed <span id="sessionPercent">0</span>% of the session.</p>
                     <div class="modal-actions">
-                        <button class="modal-btn cancel" onclick="cancelSkip()">Continue Session</button>
-                        <button class="modal-btn danger" onclick="confirmSkip()">Skip Anyway</button>
+                        <button class="modal-btn cancel">Continue Session</button>
+                        <button class="modal-btn danger">Skip Anyway</button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="modal-overlay" id="modalOverlay" onclick="hideModal(event)">
-            <div class="modal" onclick="event.stopPropagation()">
+        <div class="modal-overlay" id="modalOverlay">
+            <div class="modal">
                 <div class="modal-header">
                     <div class="modal-title" id="modalTitle">Statistics</div>
-                    <button class="close-btn" onclick="hideModal()">
+                    <button class="close-btn" id="closeModalBtn" title="Close">
                         <i data-lucide="x"></i>
                     </button>
                 </div>
                 
                 <div id="modalContent">
-                    </div>
+                </div>
             </div>
         </div>
 
         <div class="floating-widget" id="floatingWidget">
             <div class="floating-widget-header">
                 <span id="floatingSessionLabel">Deep Focus</span>
-                <button class="floating-close-btn" onclick="closeFloatingWidget()">
+                <button class="floating-close-btn" id="closeFloatingWidgetBtn" title="Close widget">
                     <i data-lucide="x"></i>
                 </button>
             </div>
@@ -349,10 +349,10 @@
                 <div id="floatingTimerTime">25:00</div>
             </div>
             <div class="floating-controls">
-                <button class="floating-btn" onclick="toggleTimerFromWidget()">
+                <button class="floating-btn" id="floatingPlayBtn" title="Play/Pause">
                     <i data-lucide="play" id="floatingPlayIcon"></i>
                 </button>
-                <button class="floating-btn" onclick="skipSessionFromWidget()">
+                <button class="floating-btn" id="floatingSkipBtn" title="Skip session">
                     <i data-lucide="skip-forward"></i>
                 </button>
             </div>
@@ -360,9 +360,6 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
-    <script>
-        lucide.createIcons();
-    </script>
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>

@@ -130,10 +130,10 @@
         <div class="timer-display" id="timerDisplay">25:00</div>
         
         <div class="timer-controls">
-            <button class="timer-btn" onclick="postAction('toggleTimer')" title="Play/Pause">
+            <button class="timer-btn" id="playBtn" title="Play/Pause">
                 <i data-lucide="play" id="playIcon"></i>
             </button>
-            <button class="timer-btn skip-btn" onclick="postAction('skipSession')" title="Skip">
+            <button class="timer-btn skip-btn" id="skipBtn" title="Skip">
                 <i data-lucide="skip-forward"></i>
             </button>
         </div>
@@ -282,6 +282,11 @@
         // Initial setup
         document.addEventListener('DOMContentLoaded', () => {
             lucide.createIcons();
+            const playBtn = document.getElementById('playBtn');
+            const skipBtn = document.getElementById('skipBtn');
+            if (playBtn) playBtn.addEventListener('click', () => postAction('toggleTimer'));
+            if (skipBtn) skipBtn.addEventListener('click', () => postAction('skipSession'));
+
             // Request initial state from main window
             if (window.opener) {
                 window.opener.postMessage({ type: 'requestSync' }, window.location.origin);
