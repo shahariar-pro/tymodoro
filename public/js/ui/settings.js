@@ -144,11 +144,15 @@ export function showSettingsModal(settings, storage, onApplyCallback) {
         <div class="setting-group">
           <label class="setting-label" for="fontStyleSelect">Font & Typography Style</label>
           <select id="fontStyleSelect" class="setting-select" aria-label="Font and typography style">
-            <option value="modern" ${(currentSettings.fontStyle || "modern") === "modern" ? "selected" : ""}>Modern Clean & Tech (Geist / SF Pro)</option>
-            <option value="rounded" ${currentSettings.fontStyle === "rounded" ? "selected" : ""}>Soft & Rounded (Nunito / Calm)</option>
-            <option value="editorial" ${currentSettings.fontStyle === "editorial" ? "selected" : ""}>Editorial & Classical (Serif)</option>
-            <option value="mono" ${currentSettings.fontStyle === "mono" ? "selected" : ""}>Minimal Mono (Terminal / Code)</option>
+            <option value="outfit" ${(currentSettings.fontStyle || "outfit") === "outfit" ? "selected" : ""}>Outfit (Modern & Soft Geometric)</option>
+            <option value="jakarta" ${currentSettings.fontStyle === "jakarta" ? "selected" : ""}>Plus Jakarta Sans (Sleek & Polished)</option>
+            <option value="inter" ${currentSettings.fontStyle === "inter" ? "selected" : ""}>Inter (Crisp Tech Standard)</option>
+            <option value="mono" ${currentSettings.fontStyle === "mono" ? "selected" : ""}>JetBrains Mono (Developer Aesthetic)</option>
+            <option value="system" ${currentSettings.fontStyle === "system" ? "selected" : ""}>System Default (Native OS)</option>
           </select>
+          <div class="setting-hint" style="margin-top: 0.35rem; font-size: 0.78rem;">
+            Applies universally across 100% of the website: timer digits, headings, buttons, inputs, tasks, and stats.
+          </div>
         </div>
 
         <div class="setting-group">
@@ -355,6 +359,7 @@ export function showSettingsModal(settings, storage, onApplyCallback) {
   // Font style with live preview
   document.getElementById("fontStyleSelect")?.addEventListener("change", (e) => {
     currentSettings.fontStyle = e.target.value;
+    document.documentElement.setAttribute("data-font", e.target.value);
     document.body.setAttribute("data-font", e.target.value);
   });
 

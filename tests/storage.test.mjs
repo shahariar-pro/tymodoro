@@ -142,11 +142,15 @@ test("storage: settings merge over defaults", () => {
   assert.strictEqual(loaded.keepAwake, true);
   assert.strictEqual(loaded.shortBreakTime, DEFAULT_SETTINGS.shortBreakTime);
   assert.strictEqual(loaded.soundOn, DEFAULT_SETTINGS.soundOn);
-  assert.strictEqual(loaded.fontStyle, "modern");
+  assert.strictEqual(loaded.fontStyle, "outfit");
 
   // Save font style change
-  saveSettings(storage, { fontStyle: "rounded" });
-  assert.strictEqual(loadSettings(storage).fontStyle, "rounded");
+  saveSettings(storage, { fontStyle: "jakarta" });
+  assert.strictEqual(loadSettings(storage).fontStyle, "jakarta");
+
+  // Migrate legacy font style name
+  saveSettings(storage, { fontStyle: "modern" });
+  assert.strictEqual(loadSettings(storage).fontStyle, "outfit");
 });
 
 test("storage: quota error handling path", () => {

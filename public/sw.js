@@ -3,12 +3,16 @@
  * Versioned cache with offline precaching and update flow.
  */
 
-const CACHE_VERSION = "tymodoro-v2";
+const CACHE_VERSION = "tymodoro-v3";
 
 const PRECACHE_ASSETS = [
   "./",
   "./index.html",
   "./css/style.css",
+  "./fonts/outfit-latin.woff2",
+  "./fonts/plus-jakarta-sans-latin.woff2",
+  "./fonts/inter-latin.woff2",
+  "./fonts/jetbrains-mono-latin.woff2",
   "./vendor/lucide.min.js",
   "./js/main.js",
   "./js/timer.js",

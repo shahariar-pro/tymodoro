@@ -1,25 +1,87 @@
-* {
+/* ==========================================================================
+   Self-Hosted Offline Fonts (Zero CDN, 100% Offline & Universal Fidelity)
+   ========================================================================== */
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url('../fonts/outfit-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url('../fonts/plus-jakarta-sans-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+  src: url('../fonts/inter-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('../fonts/jetbrains-mono-latin.woff2') format('woff2');
+}
+
+/* Universal Typography Enforcement:
+   Applies the exact same typeface to 100% of elements across the entire website */
+*,
+*::before,
+*::after {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+  font-family: var(--font-main) !important;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+html,
+body,
+input,
+button,
+select,
+textarea,
+optgroup,
+dialog,
+h1, h2, h3, h4, h5, h6,
+p, span, a, label, strong, em, b, i,
+.timer-time,
+.floating-timer-display,
+.focus-mode-time,
+.session-label,
+.todo-title,
+.calendar-title,
+.shortcut-key,
+.kbd,
+code, kbd, pre {
+  font-family: var(--font-main) !important;
+}
+
 body {
-  font-family: var(--font-main);
+  font-family: var(--font-main) !important;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
 }
 
 :root {
-  /* Typography Variables (Modern Clean & Tech default) */
-  --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-timer: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-heading: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
-  --timer-letter-spacing: -0.04em;
-  --timer-font-weight: 800;
+  /* Default Typography: Outfit (Modern & Soft Geometric) */
+  --font-main: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-timer: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --timer-letter-spacing: -0.02em;
+  --timer-font-weight: 700;
 
   --bg-primary: #000000;
   --bg-secondary: #111111;
@@ -34,46 +96,53 @@ body {
   --danger: #ef4444;
 }
 
-/* Typography Themes */
+/* Typography Themes: 100% unified across the entire website */
+[data-font="outfit"],
 [data-font="modern"],
+[data-font="rounded"],
 body:not([data-font]) {
-  --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-timer: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-heading: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-  --timer-letter-spacing: -0.05em;
-  --timer-font-weight: 800;
-}
-
-[data-font="rounded"] {
-  --font-main: "SF Pro Rounded", "Nunito", "Quicksand", "Comfortaa", "Segoe UI Rounded", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  --font-timer: "SF Pro Rounded", "Nunito", "Quicksand", "Comfortaa", system-ui, -apple-system, sans-serif;
-  --font-heading: "SF Pro Rounded", "Nunito", "Quicksand", system-ui, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font-main: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-timer: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Outfit", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --timer-letter-spacing: -0.02em;
   --timer-font-weight: 700;
 }
 
+[data-font="jakarta"],
 [data-font="editorial"] {
-  --font-main: "Charter", "Bitstream Charter", "Sitka Text", "Cambria", "Georgia", serif;
-  --font-timer: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-heading: "Charter", "Georgia", "Iowan Old Style", "Palatino", serif;
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --font-main: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-timer: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --timer-letter-spacing: -0.03em;
+  --timer-font-weight: 700;
+}
+
+[data-font="inter"] {
+  --font-main: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-timer: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --timer-letter-spacing: -0.04em;
   --timer-font-weight: 700;
 }
 
 [data-font="mono"] {
-  --font-main: ui-monospace, "JetBrains Mono", "SF Mono", "Fira Code", "Cascadia Code", Menlo, Consolas, monospace;
-  --font-timer: ui-monospace, "JetBrains Mono", "SF Mono", "Fira Code", Consolas, monospace;
-  --font-heading: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-main: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-timer: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-heading: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --timer-letter-spacing: -0.03em;
+  --timer-font-weight: 700;
+}
+
+[data-font="system"] {
+  --font-main: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-timer: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-heading: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --timer-letter-spacing: -0.03em;
   --timer-font-weight: 700;
 }
 
 h1, h2, h3, h4, .session-label, .todo-title, .calendar-title {
-  font-family: var(--font-heading);
+  font-family: var(--font-main) !important;
 }
 
 [data-theme="light"] {
@@ -996,10 +1065,11 @@ body {
 
 .timer-time {
   font-size: 4rem;
-  font-weight: var(--timer-font-weight, 800);
-  font-family: var(--font-timer);
+  font-weight: var(--timer-font-weight, 700);
+  font-family: inherit !important;
   font-variant-numeric: tabular-nums;
-  letter-spacing: var(--timer-letter-spacing, -0.04em);
+  font-feature-settings: "tnum" 1;
+  letter-spacing: var(--timer-letter-spacing, -0.02em);
   margin-bottom: 0.5rem;
   line-height: 1;
 }
@@ -1008,7 +1078,7 @@ body {
   font-size: 0.875rem;
   color: var(--text-muted);
   font-weight: 500;
-  font-family: var(--font-main);
+  font-family: inherit !important;
 }
 
 .play-btn {
@@ -1810,8 +1880,10 @@ body {
 
 .floating-timer-display {
   font-size: 2rem;
-  font-weight: 900;
-  font-family: var(--font-timer);
+  font-weight: 800;
+  font-family: inherit !important;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
   text-align: center;
   color: var(--accent);
 }
@@ -2284,10 +2356,11 @@ a:focus-visible,
 
 .focus-mode-time {
   font-size: clamp(5rem, 18vw, 14rem);
-  font-weight: var(--timer-font-weight, 800);
-  font-family: var(--font-timer);
+  font-weight: var(--timer-font-weight, 700);
+  font-family: inherit !important;
   font-variant-numeric: tabular-nums;
-  letter-spacing: var(--timer-letter-spacing, -0.04em);
+  font-feature-settings: "tnum" 1;
+  letter-spacing: var(--timer-letter-spacing, -0.02em);
   line-height: 1;
   color: var(--text-primary);
 }
@@ -2390,7 +2463,7 @@ a:focus-visible,
 .kbd {
   display: inline-block;
   padding: 0.2rem 0.5rem;
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-family: inherit !important;
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1;

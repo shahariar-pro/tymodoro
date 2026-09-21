@@ -105,8 +105,9 @@ document.addEventListener("DOMContentLoaded", () => {
   sessions = storage.loadSessions(window.localStorage);
   currentTheme = storage.loadTheme(window.localStorage);
   document.body.setAttribute("data-theme", currentTheme);
-  updateMetaThemeColor(currentTheme);
-  document.body.setAttribute("data-font", settings?.fontStyle || "modern");
+  const initialFont = settings?.fontStyle || "outfit";
+  document.documentElement.setAttribute("data-font", initialFont);
+  document.body.setAttribute("data-font", initialFont);
 
   // 3. Initialize modals & tasks
   initModals();
@@ -1288,7 +1289,13 @@ function setupUIEventListeners() {
     closeAllPanels();
     showSettingsModal(settings, window.localStorage, (updatedSettings) => {
       settings = updatedSettings;
-      document.body.setAttribute("data-font", settings.fontStyle || "modern");
+      const appliedFont = settings.fontStyle || "outfit";
+      document.documentElement.setAttribute("data-font", appliedFont);
+      document.body.setAttribute("data-font", appliedFont);
+      if (floatingWindow && !floatingWindow.closed && floatingWindow.document?.body) {
+        floatingWindow.document.documentElement.setAttribute("data-font", appliedFont);
+        floatingWindow.document.body.setAttribute("data-font", appliedFont);
+      }
       timerState = timer.applySettings(timerState, settings);
       storage.saveTimerState(window.localStorage, timerState, onQuotaError);
       updateDisplay();

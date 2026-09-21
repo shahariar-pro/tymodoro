@@ -34,7 +34,7 @@ export const DEFAULT_SETTINGS = {
   weekStart: "mon",
   pauseAmbientDuringBreaks: false,
   breakSuggestions: true,
-  fontStyle: "modern",
+  fontStyle: "outfit",
 };
 
 /**
@@ -172,8 +172,13 @@ export function migrateToV2(storage, onQuotaError = null) {
 export function loadSettings(storage) {
   const store = resolveStorage(storage);
   const saved = safeGet(store, STORAGE_KEYS.SETTINGS, null);
-  if (!saved) return { ...DEFAULT_SETTINGS };
-  return { ...DEFAULT_SETTINGS, ...saved };
+  const merged = { ...DEFAULT_SETTINGS, ...(saved || {}) };
+  if (merged.fontStyle === "modern" || merged.fontStyle === "rounded") {
+    merged.fontStyle = "outfit";
+  } else if (merged.fontStyle === "editorial") {
+    merged.fontStyle = "jakarta";
+  }
+  return merged;
 }
 
 /**
