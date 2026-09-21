@@ -692,6 +692,8 @@ function updateDisplay() {
   const floatingPlayIcon = document.getElementById("floatingPlayIcon");
   const isRunning = timerState.status === timer.STATUS.RUNNING;
 
+  document.body.classList.toggle("timer-running", isRunning);
+
   if (playIcon) playIcon.setAttribute("data-lucide", isRunning ? "pause" : "play");
   if (floatingPlayIcon) floatingPlayIcon.setAttribute("data-lucide", isRunning ? "pause" : "play");
 
