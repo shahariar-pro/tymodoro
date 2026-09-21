@@ -41,12 +41,16 @@ const sessionData = {
 }
 
 // Settings
-let settings = {
+const defaultSettings = {
   focusTime: 25,
   shortBreakTime: 5,
   longBreakTime: 15,
   longBreakAfter: 4,
+  soundOn: true,
+  notificationsOn: false,
 }
+
+let settings = { ...defaultSettings }
 
 let stats = {
   totalSessions: 0,
@@ -79,12 +83,12 @@ const noiseGenerators = {
 }
 
 // Initialize
-document.addEventListener("DOMContentLoaded", async () => {
-  await requestNotificationPermission()
+document.addEventListener("DOMContentLoaded", () => {
   loadSettings()
   loadStats()
   loadTodos() // This will now load todos for the current date
   loadTheme()
+  updateSoundIndicator()
   updateDisplay()
   renderTodos()
   updateTodoProgress()
@@ -115,43 +119,29 @@ function initAudioContext() {
 }
 
 async function requestNotificationPermission() {
-  if ("Notification" in window) {
-    try {
-      if (Notification.permission === "default") {
-        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream
-        const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0
+  if (!("Notification" in window)) return false
 
-        if (isIOS || isMac) {
-          const userWantsNotifications = confirm(
-            "TYMODORO would like to send you notifications when your focus sessions and breaks are complete. Allow notifications?",
-          )
-          if (userWantsNotifications) {
-            const permission = await Notification.requestPermission()
-            notificationPermission = permission === "granted"
-          }
-        } else {
-          const permission = await Notification.requestPermission()
-          notificationPermission = permission === "granted"
-        }
-      } else {
-        notificationPermission = Notification.permission === "granted"
-      }
+  try {
+    if (Notification.permission === "default") {
+      const permission = await Notification.requestPermission()
+      notificationPermission = permission === "granted"
       return notificationPermission
-    } catch (error) {
-      console.error("Error requesting notification permission:", error)
-      return false
     }
+    notificationPermission = Notification.permission === "granted"
+    return notificationPermission
+  } catch (error) {
+    console.error("Error requesting notification permission:", error)
+    return false
   }
-  return false
 }
 
 function showNotification(title, body) {
-  if (notificationPermission && soundEnabled) {
+  if (settings.notificationsOn && "Notification" in window && Notification.permission === "granted") {
     try {
       new Notification(title, {
         body: body,
-        icon: "/favicon.ico",
-        badge: "/favicon.ico",
+        icon: "icons/icon-192.png",
+        badge: "icons/icon-192.png",
         tag: "tymodoro-notification",
         requireInteraction: false,
       })
@@ -161,14 +151,40 @@ function showNotification(title, body) {
   }
 }
 
+function updateSoundIndicator() {
+  const indicator = document.getElementById("soundIndicator")
+  if (!indicator) return
+  const icon = indicator.querySelector("i")
+  if (!icon) return
+
+  if (soundEnabled) {
+    indicator.classList.remove("muted")
+    icon.setAttribute("data-lucide", "bell")
+  } else {
+    indicator.classList.add("muted")
+    icon.setAttribute("data-lucide", "bell-off")
+  }
+  lucide.createIcons()
+}
+
 // Settings Management
 function loadSettings() {
   const savedSettings = localStorage.getItem("tymodoro-settings")
   if (savedSettings) {
-    settings = JSON.parse(savedSettings)
+    try {
+      const parsed = JSON.parse(savedSettings)
+      settings = { ...defaultSettings, ...parsed }
+    } catch (e) {
+      console.error("Error parsing saved settings:", e)
+      settings = { ...defaultSettings }
+    }
+  } else {
+    settings = { ...defaultSettings }
   }
+  soundEnabled = settings.soundOn !== false
   timeLeft = settings.focusTime * 60
   totalTime = settings.focusTime * 60
+  updateSoundIndicator()
 }
 
 function saveSettings() {
@@ -661,7 +677,9 @@ async function toggleTimer() {
     pausedTime += Date.now() - startTime
     setIsRunning(false)
   } else {
-    await requestNotificationPermission()
+    if (settings.notificationsOn && "Notification" in window && Notification.permission === "default") {
+      await requestNotificationPermission()
+    }
     startTime = Date.now()
     sessionData.startTime = Date.now()
     sessionData.sessionType = currentSession
@@ -697,19 +715,17 @@ function setIsRunning(running) {
   } else {
     playIcon.setAttribute("data-lucide", "play")
     if (floatingPlayIcon) floatingPlayIcon.setAttribute("data-lucide", "play")
-    timerStatus.textContent = "Ready to Start"
+    timerStatus.textContent = timeLeft < totalTime ? "Paused" : "Ready to Start"
   }
   lucide.createIcons()
 }
 
-function completeSession() {
+function completeSession(elapsedSeconds = null) {
   if (currentSession === "work") {
     sessionCount++
     stats.totalSessions++
-    stats.weekSessions++
-    stats.monthSessions++
-    stats.todaySessions++
-    stats.totalMinutes += settings.focusTime
+    const elapsedMinutes = elapsedSeconds !== null ? Math.round(elapsedSeconds / 60) : settings.focusTime
+    stats.totalMinutes += elapsedMinutes
 
     const today = new Date().toDateString()
     if (!stats.dailyData) stats.dailyData = {}
@@ -750,6 +766,11 @@ function setSession(session) {
     timeLeft = settings.longBreakTime * 60
     totalTime = settings.longBreakTime * 60
   }
+
+  const timerStatus = document.getElementById("timerStatus")
+  if (timerStatus && !isRunning) {
+    timerStatus.textContent = "Ready to Start"
+  }
   
   updateSessionLabel() // Update label based on new session
   updateDisplay()
@@ -763,7 +784,8 @@ function resetTimer() {
 }
 
 function skipSession() {
-  const percentComplete = ((totalTime - timeLeft) / totalTime) * 100
+  const elapsed = totalTime - timeLeft
+  const percentComplete = (elapsed / totalTime) * 100
 
   if (currentSession === "work" && percentComplete < 90) {
     // Show confirmation modal
@@ -773,7 +795,11 @@ function skipSession() {
     // Session meets threshold or is a break, skip directly
     clearInterval(timerInterval)
     setIsRunning(false)
-    completeSession()
+    if (currentSession === "work") {
+      completeSession(elapsed)
+    } else {
+      completeSession()
+    }
   }
 }
 
@@ -795,8 +821,8 @@ function cancelSkip() {
 }
 
 function updateDisplay() {
-  const minutes = Math.floor(timeLeft / 60)
-  const seconds = timeLeft % 60
+  const minutes = Math.max(0, Math.floor(timeLeft / 60))
+  const seconds = Math.max(0, timeLeft % 60)
   const displayText = `${minutes.toString().padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`
 
   document.getElementById("timerDisplay").textContent = displayText
@@ -810,11 +836,21 @@ function updateDisplay() {
   const offset = circumference - (progress / 100) * circumference
   document.getElementById("progressCircle").style.strokeDashoffset = offset
   updateFloatingWindow() // Sync timer state with floating window
+
+  // Live document title countdown
+  if (isRunning) {
+    const phaseName = currentSession === "work" ? "Focus" : (currentSession === "shortBreak" ? "Short Break" : "Long Break")
+    document.title = `${displayText} · ${phaseName}`
+  } else if (timeLeft < totalTime) {
+    document.title = `${displayText} · Paused`
+  } else {
+    document.title = "TYMODORO - Focus Timer"
+  }
 }
 
 // Sound Functions
 function playBeep(frequency = 800, duration = 500) {
-  if (!soundEnabled || !audioContext) return
+  if (!settings.soundOn || !audioContext) return
 
   try {
     const oscillator = audioContext.createOscillator()
@@ -838,23 +874,65 @@ function playBeep(frequency = 800, duration = 500) {
 
 function toggleSound() {
   soundEnabled = !soundEnabled
-  const indicator = document.getElementById("soundIndicator")
-  const icon = indicator.querySelector("i")
+  settings.soundOn = soundEnabled
+  saveSettings()
+  updateSoundIndicator()
 
-  if (soundEnabled) {
-    indicator.classList.remove("muted")
-    icon.setAttribute("data-lucide", "bell")
-  } else {
-    indicator.classList.add("muted")
-    icon.setAttribute("data-lucide", "bell-off")
+  const soundToggle = document.getElementById("soundOnToggle")
+  if (soundToggle) soundToggle.checked = soundEnabled
+}
+
+function computeStatsFromDailyData() {
+  const now = new Date()
+  const todayStr = now.toDateString()
+  let todaySessions = 0
+  let weekSessions = 0
+  let monthSessions = 0
+
+  // Week start: Monday
+  const monday = new Date(now)
+  const day = monday.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  monday.setDate(monday.getDate() + diff)
+  monday.setHours(0, 0, 0, 0)
+
+  const nextMonday = new Date(monday)
+  nextMonday.setDate(nextMonday.getDate() + 7)
+
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth()
+
+  if (stats.dailyData) {
+    for (const [dateStr, count] of Object.entries(stats.dailyData)) {
+      const c = Number(count) || 0
+      if (dateStr === todayStr) {
+        todaySessions += c
+      }
+      const d = new Date(dateStr)
+      if (!isNaN(d.getTime())) {
+        d.setHours(0, 0, 0, 0)
+        if (d >= monday && d < nextMonday) {
+          weekSessions += c
+        }
+        if (d.getFullYear() === currentYear && d.getMonth() === currentMonth) {
+          monthSessions += c
+        }
+      }
+    }
   }
-  lucide.createIcons()
+
+  return { todaySessions, weekSessions, monthSessions }
 }
 
 // Modal Functions
 function showStats() {
   closeAllPanels()
   
+  const { todaySessions, weekSessions, monthSessions } = computeStatsFromDailyData()
+  stats.todaySessions = todaySessions
+  stats.weekSessions = weekSessions
+  stats.monthSessions = monthSessions
+
   const todos = getTodosForCurrentDate()
   const completedTodos = todos.filter((t) => t.completed).length
   const totalTodos = todos.length
@@ -867,11 +945,11 @@ function showStats() {
         <div class="stat-label">Total Sessions</div>
       </div>
       <div class="stat-card">
-        <div class="stat-number">${stats.weekSessions}</div>
+        <div class="stat-number">${weekSessions}</div>
         <div class="stat-label">This Week</div>
       </div>
       <div class="stat-card">
-        <div class="stat-number">${stats.monthSessions}</div>
+        <div class="stat-number">${monthSessions}</div>
         <div class="stat-label">This Month</div>
       </div>
       <div class="stat-card">
@@ -898,6 +976,8 @@ function showStats() {
 function showSettings() {
   closeAllPanels()
 
+  const isNotificationDenied = ("Notification" in window && Notification.permission === "denied")
+
   document.getElementById("modalTitle").textContent = "Settings"
   document.getElementById("modalContent").innerHTML = `
     <div class="setting-group">
@@ -920,9 +1000,36 @@ function showSettings() {
       <input type="range" class="slider" min="1" max="10" value="${settings.longBreakAfter}" 
              oninput="updateSetting('longBreakAfter', this.value)" id="longBreakAfterSlider">
     </div>
+    <div class="setting-toggle-row">
+      <label class="setting-toggle-label" for="soundOnToggle">Sound Effects (Beep & Alarm)</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="soundOnToggle" ${settings.soundOn ? "checked" : ""} onchange="updateSettingToggle('soundOn', this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    <div class="setting-toggle-row" style="margin-bottom: ${isNotificationDenied ? "0.5rem" : "1.5rem"};">
+      <label class="setting-toggle-label" for="notificationsOnToggle">Desktop Notifications</label>
+      <label class="toggle-switch">
+        <input type="checkbox" id="notificationsOnToggle" ${settings.notificationsOn ? "checked" : ""} onchange="updateSettingToggle('notificationsOn', this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+    ${isNotificationDenied ? '<div class="setting-hint">Notifications are blocked by your browser settings. Enable them to receive session alerts.</div>' : ''}
     <button class="apply-btn" onclick="applySettings()">Apply Settings</button>
   `
   document.getElementById("modalOverlay").style.display = "flex"
+}
+
+function updateSettingToggle(key, checked) {
+  settings[key] = Boolean(checked)
+  if (key === "soundOn") {
+    soundEnabled = settings.soundOn
+    updateSoundIndicator()
+  } else if (key === "notificationsOn" && checked) {
+    if ("Notification" in window && Notification.permission === "default") {
+      requestNotificationPermission()
+    }
+  }
 }
 
 function showAbout() {
@@ -1678,23 +1785,26 @@ function updateFloatingWindow() {
         currentTaskText: currentTaskText,
         currentTheme: currentTheme
       },
-      "*",
+      window.location.origin,
     )
   }
 }
 
 window.addEventListener("message", (event) => {
+  if (event.origin !== window.location.origin) {
+    return;
+  }
   if (event.source !== floatingWindow) {
-      return; // Ignore messages from other sources
+    return; // Ignore messages from other sources
   }
   
-  if (event.data.type === "toggleTimer") {
+  if (event.data && event.data.type === "toggleTimer") {
     toggleTimer()
-  } else if (event.data.type === "skipSession") {
+  } else if (event.data && event.data.type === "skipSession") {
     skipSession()
-  } else if (event.data.type === "requestSync") {
+  } else if (event.data && event.data.type === "requestSync") {
     updateFloatingWindow()
-  } else if (event.data.type === "floatWindowClosed") {
+  } else if (event.data && event.data.type === "floatWindowClosed") {
     floatingWindow = null
   }
 })

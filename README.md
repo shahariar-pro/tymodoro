@@ -1,38 +1,62 @@
-# tymodoro
+# Tymodoro
 
+A fast, private, distraction-free Pomodoro focus timer and daily task companion designed to help you work with clarity and mindful rhythm.
 
+## 🌟 What is Tymodoro?
 
-## 📝 Description
+Tymodoro combines the Pomodoro technique with local-first task planning, ambient sound synthesis, and detailed session statistics. It runs completely in your browser without requiring accounts, internet connectivity, or third-party services.
 
-Tymodoro is a minimalist and focused Pomodoro web application designed to boost your productivity. By leveraging the proven Pomodoro Technique, Tymodoro helps you break down work into manageable intervals, separated by short breaks. This simple yet effective approach combats procrastination and enhances concentration, leading to improved time management and overall efficiency. Experience a clutter-free and intuitive interface that allows you to start timing your work sessions immediately, without any distractions. Focus on what matters most and achieve your goals with Tymodoro.
+## ✨ Key Features
 
-## 🚀 Run Commands
+- **Pomodoro Timer**: Customizable focus sessions, quick breaks, and extended breaks with automatic cycle tracking and a live progress ring.
+- **Task Companion**: Daily todo list with subtasks, inline editing, drag-and-drop reordering, and task-to-timer linking.
+- **Calendar & Statistics**: Daily focus heatmap and live-computed session stats (Today, This Week starting Monday, This Month, Total Focus Minutes).
+- **8 Custom Themes**: Dark, Light, Ocean, Forest, Sunset, Purple, Rose, and Blush with hover preview and instant switching.
+- **Synthesized Ambient Audio**: 6 ambient nature sounds (Rain & Thunder, Forest, Ocean Waves, Coffee Shop, Fireplace, Wind) and 6 binaural focus frequencies synthesized entirely client-side via the Web Audio API (no audio asset downloads).
+- **Floating Mini-Timer**: Secure popup mini-timer window synchronized bidirectionally with the main window using origin-restricted messaging.
+- **Desktop Notifications & Sound**: Independent controls for audio beeps and desktop notifications, with polite permissions requested only on user action.
+- **Live Document Title**: Real-time countdown in browser tab with clean restoration when idle.
+- **Keyboard Shortcuts**:
+  - `Space`: Start / Pause timer
+  - `R`: Reset timer
+  - `Esc`: Close open modal or panel
 
-- **build**: `npm run build`
+## 🚀 Running Locally
 
+Tymodoro requires no build step or package dependencies. You can run it with any static web server:
+
+### Using Python
+```bash
+python3 -m http.server -d public
+```
+Then navigate to `http://localhost:8000`.
+
+### Using Node.js
+```bash
+npx serve public
+```
+Then navigate to `http://localhost:3000`.
 
 ## 📁 Project Structure
 
 ```
-public
-├── float-timer.html
-├── index.html
-├── package.json
-├── script.js
-└── style.css
+tymodoro/
+├── public/
+│   ├── index.html            # Main entry point and UI markup
+│   ├── float-timer.html      # Floating mini-timer popup window
+│   ├── package.json          # Project manifest
+│   ├── script.js             # Core state, timer, audio, and UI logic
+│   ├── style.css             # Main stylesheet, CSS variables, and themes
+│   ├── icons/
+│   │   └── icon-192.png      # Application and notification icon
+│   └── vendor/
+│       └── lucide.min.js     # Pinned Lucide icons UMD build (offline)
+├── TYMODORO_UPGRADE_SPEC.md  # Multi-phase renovation specification
+└── README.md                 # Project documentation
 ```
 
-## 👥 Contributing
+## 🔒 Privacy & Local-First Philosophy
 
-Contributions are welcome! Here's how you can help:
-
-1. **Fork** the repository
-2. **Clone** your fork: `git clone https://github.com/shahariar-pro/tymodoro.git`
-3. **Create** a new branch: `git checkout -b feature/your-feature`
-4. **Commit** your changes: `git commit -am 'Add some feature'`
-5. **Push** to your branch: `git push origin feature/your-feature`
-6. **Open** a pull request
-
-Please ensure your code follows the project's style guidelines and includes tests where applicable.
-
----
+- **Zero External Network Requests**: All scripts, fonts, and assets are self-contained and vendored locally. No CDNs, no Google Fonts, and no analytics.
+- **Local Storage Only**: All your data (settings, tasks, and statistics) stays strictly on your device inside `localStorage`.
+- **Offline Capable**: Works offline without an internet connection.
