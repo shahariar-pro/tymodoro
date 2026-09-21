@@ -242,16 +242,16 @@ function registerServiceWorker() {
  */
 function updateMetaThemeColor(theme) {
   const themeColors = {
-    dark: "#000000",
-    light: "#ffffff",
-    ocean: "#0f172a",
-    forest: "#0f1419",
-    sunset: "#1a1625",
-    purple: "#1e1b4b",
-    rose: "#1f0f1a",
-    blush: "#faf8f7",
+    dark: "#09090b",
+    light: "#fafaf9",
+    ocean: "#0b1120",
+    forest: "#091410",
+    sunset: "#18121d",
+    purple: "#100d23",
+    rose: "#170c14",
+    blush: "#faf5f5",
   };
-  const color = themeColors[theme] || "#000000";
+  const color = themeColors[theme] || "#09090b";
   let meta = document.querySelector('meta[name="theme-color"]');
   if (!meta) {
     meta = document.createElement("meta");
