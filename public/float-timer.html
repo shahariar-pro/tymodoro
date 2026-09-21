@@ -152,6 +152,12 @@
         .timer-btn:active {
             transform: scale(0.95);
         }
+
+        .timer-btn svg {
+            width: 22px;
+            height: 22px;
+            display: block;
+        }
         
         /* Style for the skip button */
         .timer-btn.skip-btn {
@@ -179,11 +185,13 @@
         <div class="timer-display" id="timerDisplay">25:00</div>
         
         <div class="timer-controls">
-            <button class="timer-btn" id="playBtn" title="Play/Pause">
-                <i data-lucide="play" id="playIcon"></i>
+            <button class="timer-btn" id="playBtn" title="Play/Pause" aria-label="Start or pause timer">
+                <span id="playIconContainer">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>
+                </span>
             </button>
-            <button class="timer-btn skip-btn" id="skipBtn" title="Skip">
-                <i data-lucide="skip-forward"></i>
+            <button class="timer-btn skip-btn" id="skipBtn" title="Skip session" aria-label="Skip session">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4" fill="currentColor"></polygon><line x1="19" x2="19" y1="5" y2="19"></line></svg>
             </button>
         </div>
         
@@ -277,10 +285,18 @@
             document.title = `${displayText} - TYMODORO`;
         }
 
+        const FLOAT_SVG_PLAY = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>';
+        const FLOAT_SVG_PAUSE = '<svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="4" height="16" x="6" y="4"></rect><rect width="4" height="16" x="14" y="4"></rect></svg>';
+
         function updateButtonState(isRunning) {
-            const playIcon = document.getElementById('playIcon');
-            playIcon.setAttribute('data-lucide', isRunning ? 'pause' : 'play');
-            lucide.createIcons();
+            const container = document.getElementById('playIconContainer');
+            if (container) {
+                container.innerHTML = isRunning ? FLOAT_SVG_PAUSE : FLOAT_SVG_PLAY;
+            }
+            const playBtn = document.getElementById('playBtn');
+            if (playBtn) {
+                playBtn.setAttribute('aria-label', isRunning ? 'Pause timer' : 'Start timer');
+            }
         }
         
         function applyTheme(themeName) {

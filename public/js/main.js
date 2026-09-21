@@ -1071,12 +1071,22 @@ async function openMiniTimer() {
       const computedTheme = getComputedStyle(document.body);
       const pipDoc = pipWindow.document;
 
+      const activeFont = settings?.fontStyle || "outfit";
+      pipDoc.documentElement.setAttribute("data-font", activeFont);
+      pipDoc.body.setAttribute("data-font", activeFont);
+
       const style = pipDoc.createElement("style");
       style.textContent = `
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Inter", -apple-system, sans-serif; }
+        * {
+          box-sizing: border-box;
+          margin: 0;
+          padding: 0;
+          font-family: inherit;
+        }
         body {
           background: ${computedTheme.getPropertyValue("--bg-primary") || "#000000"};
           color: ${computedTheme.getPropertyValue("--text-primary") || "#ffffff"};
+          font-family: ${computedTheme.fontFamily || "system-ui, -apple-system, sans-serif"};
           display: flex;
           flex-direction: column;
           align-items: center;
@@ -1084,10 +1094,27 @@ async function openMiniTimer() {
           height: 100vh;
           text-align: center;
           padding: 1rem;
+          user-select: none;
         }
-        .pip-time { font-size: 3.2rem; font-weight: 900; letter-spacing: -0.05em; line-height: 1; }
-        .pip-label { font-size: 0.875rem; color: ${computedTheme.getPropertyValue("--text-secondary") || "#cccccc"}; margin-top: 0.25rem; }
-        .pip-controls { display: flex; gap: 0.75rem; margin-top: 1rem; }
+        .pip-time {
+          font-size: 3.2rem;
+          font-weight: 800;
+          font-variant-numeric: tabular-nums;
+          font-feature-settings: "tnum" 1;
+          letter-spacing: -0.02em;
+          line-height: 1;
+        }
+        .pip-label {
+          font-size: 0.875rem;
+          font-weight: 500;
+          color: ${computedTheme.getPropertyValue("--text-secondary") || "#cccccc"};
+          margin-top: 0.35rem;
+        }
+        .pip-controls {
+          display: flex;
+          gap: 0.75rem;
+          margin-top: 1.25rem;
+        }
         .pip-btn {
           width: 48px;
           height: 48px;
@@ -1099,10 +1126,16 @@ async function openMiniTimer() {
           align-items: center;
           justify-content: center;
           cursor: pointer;
-          font-size: 1.2rem;
-          transition: all 0.2s ease;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .pip-btn:hover { transform: scale(1.08); }
+        .pip-btn svg {
+          width: 20px;
+          height: 20px;
+          display: block;
+        }
+        .pip-btn:hover {
+          transform: scale(1.08);
+        }
         .pip-btn.play {
           background: ${computedTheme.getPropertyValue("--accent") || "#ffffff"};
           color: ${computedTheme.getPropertyValue("--bg-primary") || "#000000"};
@@ -1110,12 +1143,15 @@ async function openMiniTimer() {
       `;
       pipDoc.head.appendChild(style);
 
+      const PIP_SVG_PLAY = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>`;
+      const PIP_SVG_SKIP = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="5 4 15 12 5 20 5 4" fill="currentColor"></polygon><line x1="19" x2="19" y1="5" y2="19"></line></svg>`;
+
       pipDoc.body.innerHTML = `
         <div class="pip-time" id="pipTime">25:00</div>
-        <div class="pip-label" id="pipLabel">Focus</div>
+        <div class="pip-label" id="pipLabel">Deep Focus</div>
         <div class="pip-controls">
-          <button class="pip-btn play" id="pipPlayBtn" title="Start/Pause">▶</button>
-          <button class="pip-btn" id="pipSkipBtn" title="Skip">⏭</button>
+          <button class="pip-btn play" id="pipPlayBtn" title="Start/Pause" aria-label="Start or pause timer">${PIP_SVG_PLAY}</button>
+          <button class="pip-btn" id="pipSkipBtn" title="Skip session" aria-label="Skip session">${PIP_SVG_SKIP}</button>
         </div>
       `;
 
@@ -1165,7 +1201,11 @@ function updatePipWindow() {
 
   const playBtn = pipWindow.document.getElementById("pipPlayBtn");
   if (playBtn) {
-    playBtn.textContent = timerState.status === timer.STATUS.RUNNING ? "⏸" : "▶";
+    const isRunning = timerState.status === timer.STATUS.RUNNING;
+    const playSvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="6 3 20 12 6 21 6 3"></polygon></svg>`;
+    const pauseSvg = `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect width="4" height="16" x="6" y="4"></rect><rect width="4" height="16" x="14" y="4"></rect></svg>`;
+    playBtn.innerHTML = isRunning ? pauseSvg : playSvg;
+    playBtn.setAttribute("aria-label", isRunning ? "Pause timer" : "Start timer");
   }
 }
 
