@@ -142,6 +142,16 @@ export function showSettingsModal(settings, storage, onApplyCallback) {
         </div>
 
         <div class="setting-group">
+          <label class="setting-label" for="fontStyleSelect">Font & Typography Style</label>
+          <select id="fontStyleSelect" class="setting-select" aria-label="Font and typography style">
+            <option value="modern" ${(currentSettings.fontStyle || "modern") === "modern" ? "selected" : ""}>Modern Clean & Tech (Geist / SF Pro)</option>
+            <option value="rounded" ${currentSettings.fontStyle === "rounded" ? "selected" : ""}>Soft & Rounded (Nunito / Calm)</option>
+            <option value="editorial" ${currentSettings.fontStyle === "editorial" ? "selected" : ""}>Editorial & Classical (Serif)</option>
+            <option value="mono" ${currentSettings.fontStyle === "mono" ? "selected" : ""}>Minimal Mono (Terminal / Code)</option>
+          </select>
+        </div>
+
+        <div class="setting-group">
           <label class="setting-label" for="weekStartSelect">First Day of Week</label>
           <select id="weekStartSelect" class="setting-select" aria-label="First day of week">
             <option value="mon" ${currentSettings.weekStart === "mon" ? "selected" : ""}>Monday</option>
@@ -340,6 +350,12 @@ export function showSettingsModal(settings, storage, onApplyCallback) {
   // Break suggestions
   document.getElementById("breakSuggestionsToggle")?.addEventListener("change", (e) => {
     currentSettings.breakSuggestions = e.target.checked;
+  });
+
+  // Font style with live preview
+  document.getElementById("fontStyleSelect")?.addEventListener("change", (e) => {
+    currentSettings.fontStyle = e.target.value;
+    document.body.setAttribute("data-font", e.target.value);
   });
 
   // Week start

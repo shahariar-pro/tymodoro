@@ -34,6 +34,7 @@ export const DEFAULT_SETTINGS = {
   weekStart: "mon",
   pauseAmbientDuringBreaks: false,
   breakSuggestions: true,
+  fontStyle: "modern",
 };
 
 /**

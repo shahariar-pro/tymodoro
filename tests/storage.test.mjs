@@ -142,6 +142,11 @@ test("storage: settings merge over defaults", () => {
   assert.strictEqual(loaded.keepAwake, true);
   assert.strictEqual(loaded.shortBreakTime, DEFAULT_SETTINGS.shortBreakTime);
   assert.strictEqual(loaded.soundOn, DEFAULT_SETTINGS.soundOn);
+  assert.strictEqual(loaded.fontStyle, "modern");
+
+  // Save font style change
+  saveSettings(storage, { fontStyle: "rounded" });
+  assert.strictEqual(loadSettings(storage).fontStyle, "rounded");
 });
 
 test("storage: quota error handling path", () => {

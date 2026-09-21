@@ -106,6 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
   currentTheme = storage.loadTheme(window.localStorage);
   document.body.setAttribute("data-theme", currentTheme);
   updateMetaThemeColor(currentTheme);
+  document.body.setAttribute("data-font", settings?.fontStyle || "modern");
 
   // 3. Initialize modals & tasks
   initModals();
@@ -1287,6 +1288,7 @@ function setupUIEventListeners() {
     closeAllPanels();
     showSettingsModal(settings, window.localStorage, (updatedSettings) => {
       settings = updatedSettings;
+      document.body.setAttribute("data-font", settings.fontStyle || "modern");
       timerState = timer.applySettings(timerState, settings);
       storage.saveTimerState(window.localStorage, timerState, onQuotaError);
       updateDisplay();

@@ -3,10 +3,24 @@
   padding: 0;
   box-sizing: border-box;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+}
+
+body {
+  font-family: var(--font-main);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 :root {
+  /* Typography Variables (Modern Clean & Tech default) */
+  --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-timer: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-heading: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --timer-letter-spacing: -0.04em;
+  --timer-font-weight: 800;
+
   --bg-primary: #000000;
   --bg-secondary: #111111;
   --bg-tertiary: #1a1a1a;
@@ -18,6 +32,48 @@
   --shadow: rgba(0, 0, 0, 0.5);
   --success: #10b981;
   --danger: #ef4444;
+}
+
+/* Typography Themes */
+[data-font="modern"],
+body:not([data-font]) {
+  --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-timer: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-heading: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --timer-letter-spacing: -0.05em;
+  --timer-font-weight: 800;
+}
+
+[data-font="rounded"] {
+  --font-main: "SF Pro Rounded", "Nunito", "Quicksand", "Comfortaa", "Segoe UI Rounded", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-timer: "SF Pro Rounded", "Nunito", "Quicksand", "Comfortaa", system-ui, -apple-system, sans-serif;
+  --font-heading: "SF Pro Rounded", "Nunito", "Quicksand", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --timer-letter-spacing: -0.02em;
+  --timer-font-weight: 700;
+}
+
+[data-font="editorial"] {
+  --font-main: "Charter", "Bitstream Charter", "Sitka Text", "Cambria", "Georgia", serif;
+  --font-timer: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-heading: "Charter", "Georgia", "Iowan Old Style", "Palatino", serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  --timer-letter-spacing: -0.04em;
+  --timer-font-weight: 700;
+}
+
+[data-font="mono"] {
+  --font-main: ui-monospace, "JetBrains Mono", "SF Mono", "Fira Code", "Cascadia Code", Menlo, Consolas, monospace;
+  --font-timer: ui-monospace, "JetBrains Mono", "SF Mono", "Fira Code", Consolas, monospace;
+  --font-heading: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --timer-letter-spacing: -0.03em;
+  --timer-font-weight: 700;
+}
+
+h1, h2, h3, h4, .session-label, .todo-title, .calendar-title {
+  font-family: var(--font-heading);
 }
 
 [data-theme="light"] {
@@ -123,7 +179,7 @@ body {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 body {
@@ -172,7 +228,7 @@ body {
   font-weight: 900;
   letter-spacing: 0.1em;
   color: var(--text-primary);
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .logo-dot {
@@ -231,7 +287,7 @@ body {
   justify-content: center;
   transition: all 0.2s ease;
   border: 1px solid var(--border);
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
   flex-shrink: 0;
 }
 
@@ -429,14 +485,14 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .todo-stats {
   font-size: 0.875rem;
   color: var(--text-muted);
   font-weight: 500;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .todo-input-container {
@@ -457,7 +513,7 @@ body {
   font-size: 0.875rem;
   outline: none;
   transition: all 0.2s ease;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 #todoInput:focus {
@@ -467,7 +523,7 @@ body {
 
 #todoInput::placeholder {
   color: var(--text-muted);
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .priority-select {
@@ -480,7 +536,7 @@ body {
   outline: none;
   cursor: pointer;
   transition: all 0.2s ease;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .priority-select:focus {
@@ -605,7 +661,7 @@ body {
   word-wrap: break-word;
   word-break: break-word;
   line-height: 1.5;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
   min-width: 0;
   cursor: pointer;
 }
@@ -619,7 +675,7 @@ body {
   color: var(--text-primary);
   font-size: 0.875rem;
   outline: none;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
   word-wrap: break-word;
   resize: none;
   min-height: 1.5em;
@@ -777,7 +833,7 @@ body {
   justify-content: center;
   gap: 0.5rem;
   transition: all 0.2s ease;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .clear-completed-btn:hover {
@@ -806,7 +862,7 @@ body {
 .empty-state p {
   font-size: 0.875rem;
   line-height: 1.6;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 /* Timer Section */
@@ -825,7 +881,7 @@ body {
   margin-bottom: 2rem;
   text-align: center;
   color: var(--text-primary);
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
   /* Added to prevent text overflow */
   max-width: 90%;
   word-break: break-word;
@@ -940,9 +996,10 @@ body {
 
 .timer-time {
   font-size: 4rem;
-  font-weight: 900;
-  font-family: "Inter", monospace;
-  letter-spacing: -0.05em;
+  font-weight: var(--timer-font-weight, 800);
+  font-family: var(--font-timer);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--timer-letter-spacing, -0.04em);
   margin-bottom: 0.5rem;
   line-height: 1;
 }
@@ -951,7 +1008,7 @@ body {
   font-size: 0.875rem;
   color: var(--text-muted);
   font-weight: 500;
-  font-family: "Inter", sans-serif;
+  font-family: var(--font-main);
 }
 
 .play-btn {
@@ -1002,7 +1059,7 @@ body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .ctrl-btn:hover {
@@ -1069,7 +1126,7 @@ body {
   font-size: 1rem;
   font-weight: 600;
   color: var(--text-primary);
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .noise-tabs {
@@ -1087,7 +1144,7 @@ body {
   font-size: 0.75rem;
   font-weight: 500;
   transition: all 0.2s ease;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .noise-tab.active {
@@ -1142,7 +1199,7 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   color: var(--text-secondary);
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .noise-btn:hover {
@@ -1159,7 +1216,7 @@ body {
 .noise-btn span {
   font-size: 0.75rem;
   font-weight: 500;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .volume-control {
@@ -1227,7 +1284,7 @@ body {
   font-size: 1.25rem;
   font-weight: 600;
   color: var(--text-primary);
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .close-theme-btn {
@@ -1267,7 +1324,7 @@ body {
   cursor: pointer;
   transition: all 0.2s ease;
   color: var(--text-secondary);
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .theme-option:hover {
@@ -1286,7 +1343,7 @@ body {
 .theme-option span {
   font-size: 0.875rem;
   font-weight: 500;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .theme-dots {
@@ -1341,7 +1398,7 @@ body {
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--text-primary);
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .close-btn {
@@ -1396,14 +1453,14 @@ body {
   font-weight: 700;
   margin-bottom: 0.5rem;
   color: var(--text-primary);
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .stat-label {
   font-size: 0.875rem;
   color: var(--text-muted);
   font-weight: 500;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .stats-chart {
@@ -1424,7 +1481,7 @@ body {
   font-weight: 600;
   margin-bottom: 1rem;
   color: var(--text-primary);
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .slider {
@@ -1465,7 +1522,7 @@ body {
   font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-primary);
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .toggle-switch {
@@ -1585,7 +1642,7 @@ body {
   cursor: pointer;
   transition: all 0.3s ease;
   margin-top: 1rem;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .apply-btn:hover {
@@ -1607,7 +1664,7 @@ body {
   cursor: pointer;
   font-weight: 600;
   transition: all 0.2s ease;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .modal-btn.cancel {
@@ -1630,13 +1687,13 @@ body {
   color: var(--text-primary);
   margin-bottom: 1rem;
   font-size: 1.1rem;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .about-content p {
   margin-bottom: 1rem;
   color: var(--text-secondary);
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .contact-links {
@@ -1657,7 +1714,7 @@ body {
   text-decoration: none;
   color: var(--text-primary);
   transition: all 0.2s ease;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .contact-link:hover {
@@ -1676,7 +1733,7 @@ body {
 }
 
 .motivational-message p {
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 .completed-toggle {
@@ -1700,7 +1757,7 @@ body {
   color: var(--text-secondary);
   cursor: pointer;
   margin: 0;
-  font-family: "Inter", sans-serif;
+  font-family: inherit;
 }
 
 /* Floating timer widget for desktop and mobile */
@@ -1754,7 +1811,7 @@ body {
 .floating-timer-display {
   font-size: 2rem;
   font-weight: 900;
-  font-family: "Inter", monospace;
+  font-family: var(--font-timer);
   text-align: center;
   color: var(--accent);
 }
@@ -2227,9 +2284,10 @@ a:focus-visible,
 
 .focus-mode-time {
   font-size: clamp(5rem, 18vw, 14rem);
-  font-weight: 900;
-  font-family: "Inter", sans-serif;
-  letter-spacing: -0.05em;
+  font-weight: var(--timer-font-weight, 800);
+  font-family: var(--font-timer);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--timer-letter-spacing, -0.04em);
   line-height: 1;
   color: var(--text-primary);
 }
