@@ -119,55 +119,69 @@
                 </div>
                 
                 <div class="todo-input-container">
-                    <input 
-                        type="text" 
-                        id="todoInput" 
-                        placeholder="Add a new task..."
-                        maxlength="100"
-                        aria-label="New task name"
-                    >
-                    <input 
-                        type="number" 
-                        id="todoEstimate" 
-                        class="estimate-input"
-                        placeholder="Est" 
-                        min="0" 
-                        max="12" 
-                        title="Estimated Pomodoros (0-12)"
-                        aria-label="Estimated Pomodoros"
-                    >
-                    <input 
-                        type="text" 
-                        id="todoTag" 
-                        class="tag-input"
-                        placeholder="Tag" 
-                        list="tagDatalist"
-                        maxlength="20"
-                        title="Task Tag (optional)"
-                        aria-label="Task tag"
-                    >
+                    <div class="todo-input-main-row">
+                        <input 
+                            type="text" 
+                            id="todoInput" 
+                            placeholder="Add a task to focus on..."
+                            maxlength="100"
+                            aria-label="New task name"
+                        >
+                        <button class="add-todo-btn" id="addTodoBtn" title="Add task (Enter)" aria-label="Add task">
+                            <i data-lucide="plus"></i>
+                        </button>
+                    </div>
+                    <div class="todo-input-meta-row">
+                        <div class="todo-meta-chip" title="Estimated Pomodoros (how many 25-min focus sessions will this take?)">
+                            <i data-lucide="timer"></i>
+                            <span class="meta-label">Est:</span>
+                            <input 
+                                type="number" 
+                                id="todoEstimate" 
+                                class="estimate-input"
+                                placeholder="0" 
+                                min="0" 
+                                max="12" 
+                                title="Estimated Pomodoros (0-12 sessions)"
+                                aria-label="Estimated Pomodoros"
+                            >
+                        </div>
+                        <div class="todo-meta-chip" title="Category or Project Tag (optional)">
+                            <i data-lucide="tag"></i>
+                            <input 
+                                type="text" 
+                                id="todoTag" 
+                                class="tag-input"
+                                placeholder="Tag" 
+                                list="tagDatalist"
+                                maxlength="20"
+                                title="Task Tag (optional)"
+                                aria-label="Task tag"
+                            >
+                        </div>
+                        <div class="todo-meta-chip" title="Task Priority">
+                            <i data-lucide="flag"></i>
+                            <select id="todoPriority" class="priority-select" aria-label="Task priority">
+                                <option value="low">Low</option>
+                                <option value="medium" selected>Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                    </div>
                     <datalist id="tagDatalist"></datalist>
-                    <select id="todoPriority" class="priority-select" aria-label="Task priority">
-                        <option value="low">Low</option>
-                        <option value="medium" selected>Medium</option>
-                        <option value="high">High</option>
-                    </select>
-                    <button class="add-todo-btn" id="addTodoBtn" title="Add task" aria-label="Add task">
-                        <i data-lucide="plus"></i>
-                    </button>
                 </div>
                 
                 <div class="todo-list" id="todoList" role="list" aria-label="Todo task list">
                 </div>
                 
                 <div class="todo-footer">
-                    <button class="carry-over-btn" id="carryOverBtn" title="Bring over unfinished tasks from previous days" aria-label="Bring over unfinished tasks">
+                    <button class="carry-over-btn" id="carryOverBtn" title="Bring over unfinished tasks from previous days to today" aria-label="Carry over unfinished tasks from previous days">
                         <i data-lucide="corner-down-left"></i>
-                        Carry Over
+                        <span>Carry Over</span>
                     </button>
-                    <button class="clear-completed-btn" id="clearCompletedBtn" aria-label="Clear completed tasks">
+                    <button class="clear-completed-btn" id="clearCompletedBtn" title="Clear all completed tasks" aria-label="Clear completed tasks">
                         <i data-lucide="trash-2"></i>
-                        Clear Completed
+                        <span>Clear Completed</span>
                     </button>
                 </div>
             </section>

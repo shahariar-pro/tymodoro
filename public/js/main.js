@@ -865,33 +865,38 @@ function nextMonth() {
   );
 }
 
+function updateMainContentLayoutClasses() {
+  const mainContent = document.getElementById("mainContent");
+  if (!mainContent) return;
+  const todoHidden = document.getElementById("todoSection")?.classList.contains("hidden");
+  const calHidden = document.getElementById("calendarSection")?.classList.contains("hidden");
+
+  mainContent.classList.toggle("with-todos", !todoHidden);
+  mainContent.classList.toggle("with-calendar", !calHidden);
+  mainContent.classList.toggle("timer-only", Boolean(todoHidden && calHidden));
+}
+
 function toggleCalendar() {
   const calendarSection = document.getElementById("calendarSection");
-  const mainContent = document.getElementById("mainContent");
-  if (!calendarSection || !mainContent) return;
+  if (!calendarSection) return;
 
   const isHidden = calendarSection.classList.contains("hidden");
   if (isHidden) {
     calendarSection.classList.remove("hidden");
-    mainContent.classList.add("with-calendar");
-    mainContent.classList.remove("timer-only");
   } else {
     calendarSection.classList.add("hidden");
-    mainContent.classList.remove("with-calendar");
-    mainContent.classList.add("timer-only");
   }
+  updateMainContentLayoutClasses();
 }
 
 function toggleTodoList() {
   const todoSection = document.getElementById("todoSection");
-  const mainContent = document.getElementById("mainContent");
   const toggleBtn = document.getElementById("todoToggleBtn");
-  if (!todoSection || !mainContent) return;
+  if (!todoSection) return;
 
   const isHidden = todoSection.classList.contains("hidden");
   if (isHidden) {
     todoSection.classList.remove("hidden");
-    mainContent.classList.remove("timer-only");
     if (toggleBtn) {
       toggleBtn.classList.add("active");
       const icon = toggleBtn.querySelector("i");
@@ -899,15 +904,13 @@ function toggleTodoList() {
     }
   } else {
     todoSection.classList.add("hidden");
-    if (document.getElementById("calendarSection")?.classList.contains("hidden")) {
-      mainContent.classList.add("timer-only");
-    }
     if (toggleBtn) {
       toggleBtn.classList.remove("active");
       const icon = toggleBtn.querySelector("i");
       if (icon) icon.setAttribute("data-lucide", "list-todo");
     }
   }
+  updateMainContentLayoutClasses();
   if (window.lucide && typeof window.lucide.createIcons === "function") {
     window.lucide.createIcons();
   }
