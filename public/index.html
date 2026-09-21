@@ -126,6 +126,27 @@
                         maxlength="100"
                         aria-label="New task name"
                     >
+                    <input 
+                        type="number" 
+                        id="todoEstimate" 
+                        class="estimate-input"
+                        placeholder="Est" 
+                        min="0" 
+                        max="12" 
+                        title="Estimated Pomodoros (0-12)"
+                        aria-label="Estimated Pomodoros"
+                    >
+                    <input 
+                        type="text" 
+                        id="todoTag" 
+                        class="tag-input"
+                        placeholder="Tag" 
+                        list="tagDatalist"
+                        maxlength="20"
+                        title="Task Tag (optional)"
+                        aria-label="Task tag"
+                    >
+                    <datalist id="tagDatalist"></datalist>
                     <select id="todoPriority" class="priority-select" aria-label="Task priority">
                         <option value="low">Low</option>
                         <option value="medium" selected>Medium</option>
@@ -140,6 +161,10 @@
                 </div>
                 
                 <div class="todo-footer">
+                    <button class="carry-over-btn" id="carryOverBtn" title="Bring over unfinished tasks from previous days" aria-label="Bring over unfinished tasks">
+                        <i data-lucide="corner-down-left"></i>
+                        Carry Over
+                    </button>
                     <button class="clear-completed-btn" id="clearCompletedBtn" aria-label="Clear completed tasks">
                         <i data-lucide="trash-2"></i>
                         Clear Completed

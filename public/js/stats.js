@@ -170,3 +170,153 @@ export function getStatsSummary(sessions = [], weekStart = "mon", now = new Date
     dailyData,
   };
 }
+
+/**
+ * Calculates progress toward daily goal
+ */
+export function getDailyGoalProgress(sessions = [], dailyGoal = 4, now = new Date()) {
+  const summary = getStatsSummary(sessions, "mon", now);
+  const todayCount = summary.todaySessions;
+  const goal = Math.max(1, dailyGoal || 4);
+  const percent = Math.min(100, Math.round((todayCount / goal) * 100));
+
+  return {
+    todayCount,
+    goal,
+    percent,
+    achieved: todayCount >= goal,
+  };
+}
+
+/**
+ * Returns daily activity over the last N days (7, 30, or 90)
+ */
+export function getDailyActivity(sessions = [], days = 7, now = new Date()) {
+  const completedSessions = sessions.filter((s) => s && s.completed);
+  const activityMap = new Map();
+
+  // Index sessions by YYYY-MM-DD
+  for (const s of completedSessions) {
+    const ts = s.end || s.start || now.getTime();
+    const dateStr = toLocalDateString(ts);
+    const prev = activityMap.get(dateStr) || { count: 0, minutes: 0 };
+    const sec = s.actualSec != null ? s.actualSec : (s.plannedSec || 1500);
+    prev.count += 1;
+    prev.minutes += Math.round(sec / 60);
+    activityMap.set(dateStr, prev);
+  }
+
+  const result = [];
+  const startDay = new Date(now);
+  startDay.setHours(0, 0, 0, 0);
+
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date(startDay);
+    d.setDate(d.getDate() - i);
+    const dateStr = toLocalDateString(d);
+    const data = activityMap.get(dateStr) || { count: 0, minutes: 0 };
+    const dayName = d.toLocaleDateString("en-US", { weekday: "short" });
+    const shortDate = d.toLocaleDateString("en-US", { month: "numeric", day: "numeric" });
+
+    result.push({
+      dateStr,
+      dayName,
+      shortDate,
+      count: data.count,
+      minutes: data.minutes,
+    });
+  }
+
+  return result;
+}
+
+/**
+ * Returns 24-hour histogram of sessions started or completed by hour of day (0-23)
+ */
+export function getHistogramByHour(sessions = []) {
+  const completedSessions = sessions.filter((s) => s && s.completed);
+  const histogram = new Array(24).fill(0);
+
+  for (const s of completedSessions) {
+    const ts = s.start || s.end;
+    if (ts) {
+      const hour = new Date(ts).getHours();
+      if (hour >= 0 && hour < 24) {
+        histogram[hour]++;
+      }
+    }
+  }
+
+  return histogram;
+}
+
+/**
+ * Computes breakdown of focus time and sessions by tag
+ */
+export function getTagBreakdown(sessions = []) {
+  const completedSessions = sessions.filter((s) => s && s.completed);
+  const map = new Map();
+
+  for (const s of completedSessions) {
+    const tag = (s.tag || "").trim() || "Untagged";
+    const sec = s.actualSec != null ? s.actualSec : (s.plannedSec || 1500);
+    const prev = map.get(tag) || { sessions: 0, minutes: 0 };
+    prev.sessions++;
+    prev.minutes += Math.round(sec / 60);
+    map.set(tag, prev);
+  }
+
+  return Array.from(map.entries())
+    .map(([tag, data]) => ({
+      tag,
+      sessions: data.sessions,
+      minutes: data.minutes,
+    }))
+    .sort((a, b) => b.sessions - a.sessions || b.minutes - a.minutes);
+}
+
+/**
+ * Computes breakdown of focus time and pomodoros by task
+ */
+export function getTaskBreakdown(sessions = [], allTodos = {}) {
+  const completedSessions = sessions.filter((s) => s && s.completed && s.taskId);
+  const map = new Map();
+
+  // Build task title lookup from allTodos
+  const taskLookup = new Map();
+  if (allTodos && typeof allTodos === "object") {
+    for (const dateKey of Object.keys(allTodos)) {
+      const list = allTodos[dateKey];
+      if (Array.isArray(list)) {
+        for (const t of list) {
+          if (t && t.id) {
+            taskLookup.set(t.id, { text: t.text, tag: t.tag });
+          }
+        }
+      }
+    }
+  }
+
+  for (const s of completedSessions) {
+    const taskId = s.taskId;
+    const resolved = taskLookup.get(taskId);
+    const taskName = resolved?.text || s.taskName || `Task #${String(taskId).slice(-4)}`;
+    const tag = (s.tag || resolved?.tag || "").trim();
+    const sec = s.actualSec != null ? s.actualSec : (s.plannedSec || 1500);
+
+    const prev = map.get(taskId) || {
+      taskId,
+      taskName,
+      tag,
+      sessions: 0,
+      minutes: 0,
+    };
+    prev.sessions++;
+    prev.minutes += Math.round(sec / 60);
+    map.set(taskId, prev);
+  }
+
+  return Array.from(map.values()).sort(
+    (a, b) => b.sessions - a.sessions || b.minutes - a.minutes,
+  );
+}

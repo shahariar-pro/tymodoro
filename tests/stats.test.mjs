@@ -5,6 +5,11 @@ import {
   computeStreaks,
   getStartOfWeek,
   toLocalDayIndex,
+  getDailyGoalProgress,
+  getDailyActivity,
+  getHistogramByHour,
+  getTagBreakdown,
+  getTaskBreakdown,
 } from "../public/js/stats.js";
 
 test("stats: day, week, month boundaries with weekStart mon, sat, sun", () => {
@@ -170,4 +175,88 @@ test("stats: DST-safe local-date handling", () => {
   const index3 = toLocalDayIndex(fallBefore);
   const index4 = toLocalDayIndex(fallAfter);
   assert.strictEqual(index4 - index3, 1, "Day index difference across Fall DST must be exactly 1");
+});
+
+test("stats: daily goal progress and achievement", () => {
+  const today = new Date(2026, 8, 22, 14, 0, 0);
+
+  const sessions = [
+    { id: "s1", start: new Date(2026, 8, 22, 9, 0).getTime(), completed: true },
+    { id: "s2", start: new Date(2026, 8, 22, 10, 0).getTime(), completed: true },
+    { id: "s3", start: new Date(2026, 8, 22, 11, 0).getTime(), completed: true },
+  ];
+
+  // Goal = 4: 3/4 = 75%, not achieved
+  const progress75 = getDailyGoalProgress(sessions, 4, today);
+  assert.strictEqual(progress75.todayCount, 3);
+  assert.strictEqual(progress75.goal, 4);
+  assert.strictEqual(progress75.percent, 75);
+  assert.strictEqual(progress75.achieved, false);
+
+  // Goal = 3: 3/3 = 100%, achieved
+  const progress100 = getDailyGoalProgress(sessions, 3, today);
+  assert.strictEqual(progress100.percent, 100);
+  assert.strictEqual(progress100.achieved, true);
+});
+
+test("stats: daily activity N-day range and hour histogram", () => {
+  const refNow = new Date(2026, 8, 22, 16, 0, 0);
+
+  const sessions = [
+    // 2 sessions at 14:00 today
+    { id: "s1", start: new Date(2026, 8, 22, 14, 0).getTime(), plannedSec: 1500, actualSec: 1500, completed: true },
+    { id: "s2", start: new Date(2026, 8, 22, 14, 30).getTime(), plannedSec: 1500, actualSec: 1500, completed: true },
+    // 1 session yesterday at 9:00
+    { id: "s3", start: new Date(2026, 8, 21, 9, 0).getTime(), plannedSec: 1500, actualSec: 1500, completed: true },
+  ];
+
+  // Activity 7 days
+  const activity7 = getDailyActivity(sessions, 7, refNow);
+  assert.strictEqual(activity7.length, 7);
+  // Last element is today
+  assert.strictEqual(activity7[6].count, 2);
+  assert.strictEqual(activity7[6].minutes, 50);
+  // Second-to-last is yesterday
+  assert.strictEqual(activity7[5].count, 1);
+  assert.strictEqual(activity7[5].minutes, 25);
+
+  // Histogram 24 hours
+  const hist = getHistogramByHour(sessions);
+  assert.strictEqual(hist.length, 24);
+  assert.strictEqual(hist[14], 2, "Hour 14 should have 2 sessions");
+  assert.strictEqual(hist[9], 1, "Hour 9 should have 1 session");
+  assert.strictEqual(hist[0], 0, "Hour 0 should have 0 sessions");
+});
+
+test("stats: tag breakdown and task pomodoro breakdown", () => {
+  const sessions = [
+    { id: "s1", taskId: 101, tag: "Coding", plannedSec: 1500, actualSec: 1500, completed: true },
+    { id: "s2", taskId: 101, tag: "Coding", plannedSec: 1500, actualSec: 1500, completed: true },
+    { id: "s3", taskId: 102, tag: "Writing", plannedSec: 1500, actualSec: 1500, completed: true },
+    { id: "s4", taskId: null, tag: null, plannedSec: 1500, actualSec: 1500, completed: true },
+  ];
+
+  const mockTodos = {
+    "Tue Sep 22 2026": [
+      { id: 101, text: "Build feature", tag: "Coding", estimate: 3, done: 2 },
+      { id: 102, text: "Write documentation", tag: "Writing", estimate: 1, done: 1 },
+    ],
+  };
+
+  // Tags
+  const tagStats = getTagBreakdown(sessions);
+  assert.strictEqual(tagStats.length, 3);
+  // Top tag: Coding with 2 sessions
+  assert.strictEqual(tagStats[0].tag, "Coding");
+  assert.strictEqual(tagStats[0].sessions, 2);
+  assert.strictEqual(tagStats[0].minutes, 50);
+
+  // Tasks
+  const taskStats = getTaskBreakdown(sessions, mockTodos);
+  assert.strictEqual(taskStats.length, 2);
+  // Task 101 should have 2 pomodoros
+  assert.strictEqual(taskStats[0].taskId, 101);
+  assert.strictEqual(taskStats[0].taskName, "Build feature");
+  assert.strictEqual(taskStats[0].sessions, 2);
+  assert.strictEqual(taskStats[0].minutes, 50);
 });

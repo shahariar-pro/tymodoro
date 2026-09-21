@@ -6,7 +6,7 @@
 
 import * as timer from "./timer.js";
 import * as storage from "./storage.js";
-import { getStatsSummary } from "./stats.js";
+import { getStatsSummary, getDailyGoalProgress } from "./stats.js";
 import * as tasks from "./tasks.js";
 import * as audio from "./audio.js";
 import { showToast } from "./ui/toasts.js";
@@ -301,6 +301,15 @@ function handleSessionCompleted(completedSession) {
   releaseWakeLock();
 
   if (completedSession) {
+    if (timerState?.taskId) {
+      const incrementResult = tasks.incrementTaskPomodoro(timerState.taskId, window.localStorage);
+      if (incrementResult) {
+        completedSession.taskId = incrementResult.taskId;
+        completedSession.tag = incrementResult.tag;
+        completedSession.taskName = incrementResult.taskName;
+      }
+    }
+
     sessions.push(completedSession);
     storage.appendSession(window.localStorage, completedSession, onQuotaError);
     renderCalendar(
@@ -310,6 +319,12 @@ function handleSessionCompleted(completedSession) {
       settings,
       handleSelectCalendarDate,
     );
+
+    // Celebrate Daily Goal completion once
+    const goalProgress = getDailyGoalProgress(sessions, settings.dailyGoal);
+    if (goalProgress.todayCount === goalProgress.goal) {
+      showToast("🎉 Daily Goal achieved! Great work!", 5000);
+    }
   }
 
   // 1. Play Synthesized Alarm
@@ -1265,6 +1280,10 @@ function setupUIEventListeners() {
   });
   document.getElementById("clearCompletedBtn")?.addEventListener("click", () => {
     tasks.clearCompleted(window.localStorage);
+  });
+  document.getElementById("carryOverBtn")?.addEventListener("click", () => {
+    const res = tasks.bringOverUnfinishedTasks(window.localStorage);
+    showToast(res.message, 4000);
   });
 
   // Timer controls

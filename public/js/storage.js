@@ -239,3 +239,214 @@ export function loadTheme(storage) {
 export function saveTheme(storage, theme, onQuotaError = null) {
   return safeSet(storage, STORAGE_KEYS.THEME, theme, onQuotaError);
 }
+
+/**
+ * Exports all Tymodoro data as a JSON string with metadata
+ */
+export function exportDataJSON(storage) {
+  const store = resolveStorage(storage);
+  const backup = {
+    schemaVersion: CURRENT_SCHEMA_VERSION,
+    exportedAt: new Date().toISOString(),
+    settings: loadSettings(store),
+    sessions: loadSessions(store),
+    todos: loadTodos(store),
+    theme: loadTheme(store),
+  };
+  return JSON.stringify(backup, null, 2);
+}
+
+/**
+ * Exports completed sessions as a CSV string
+ */
+export function exportSessionsCSV(storage) {
+  const sessions = loadSessions(storage);
+  const headers = [
+    "id",
+    "startTime",
+    "endTime",
+    "phase",
+    "plannedSec",
+    "actualSec",
+    "completed",
+    "taskId",
+    "tag",
+  ];
+
+  const escapeCsv = (val) => {
+    if (val == null) return "";
+    const str = String(val);
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+      return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+  };
+
+  const rows = sessions.map((s) =>
+    [
+      escapeCsv(s.id),
+      escapeCsv(s.start ? new Date(s.start).toISOString() : ""),
+      escapeCsv(s.end ? new Date(s.end).toISOString() : ""),
+      escapeCsv(s.phase || "work"),
+      escapeCsv(s.plannedSec || 1500),
+      escapeCsv(s.actualSec != null ? s.actualSec : s.plannedSec || 1500),
+      escapeCsv(s.completed ? "true" : "false"),
+      escapeCsv(s.taskId || ""),
+      escapeCsv(s.tag || ""),
+    ].join(","),
+  );
+
+  return [headers.join(","), ...rows].join("\n");
+}
+
+/**
+ * Validates imported JSON data structure and contents
+ */
+export function validateImportData(jsonString) {
+  if (typeof jsonString !== "string" || !jsonString.trim()) {
+    return { valid: false, error: "The provided file is empty." };
+  }
+
+  let parsed = null;
+  try {
+    parsed = JSON.parse(jsonString);
+  } catch (err) {
+    return { valid: false, error: "Invalid JSON syntax. File could not be parsed." };
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { valid: false, error: "Invalid backup format: root must be a JSON object." };
+  }
+
+  const hasSessions = Array.isArray(parsed.sessions);
+  const hasTodos =
+    parsed.todos && typeof parsed.todos === "object" && !Array.isArray(parsed.todos);
+  const hasSettings = parsed.settings && typeof parsed.settings === "object";
+
+  if (!hasSessions && !hasTodos && !hasSettings) {
+    return {
+      valid: false,
+      error: "Backup file contains no recognizable Tymodoro sessions, tasks, or settings.",
+    };
+  }
+
+  let sessionCount = hasSessions ? parsed.sessions.length : 0;
+  let todoCount = 0;
+  let dateCount = 0;
+
+  if (hasTodos) {
+    for (const dateKey of Object.keys(parsed.todos)) {
+      if (Array.isArray(parsed.todos[dateKey])) {
+        dateCount++;
+        todoCount += parsed.todos[dateKey].length;
+      }
+    }
+  }
+
+  return {
+    valid: true,
+    data: parsed,
+    summary: {
+      sessionCount,
+      todoCount,
+      dateCount,
+      schemaVersion: parsed.schemaVersion || 1,
+      exportedAt: parsed.exportedAt || null,
+    },
+  };
+}
+
+/**
+ * Merges imported backup data with current storage without deleting existing data
+ */
+export function mergeImportData(storage, importedData, onQuotaError = null) {
+  const store = resolveStorage(storage);
+
+  // 1. Merge sessions (deduplicate by session id)
+  if (Array.isArray(importedData.sessions)) {
+    const existingSessions = loadSessions(store);
+    const existingIds = new Set(existingSessions.map((s) => s.id));
+    for (const s of importedData.sessions) {
+      if (s && s.id && !existingIds.has(s.id)) {
+        existingSessions.push(s);
+        existingIds.add(s.id);
+      }
+    }
+    safeSet(store, STORAGE_KEYS.SESSIONS, existingSessions, onQuotaError);
+  }
+
+  // 2. Merge todos (deduplicate by task id within date)
+  if (importedData.todos && typeof importedData.todos === "object") {
+    const existingTodos = loadTodos(store);
+    for (const dateKey of Object.keys(importedData.todos)) {
+      const incomingList = importedData.todos[dateKey];
+      if (Array.isArray(incomingList)) {
+        if (!existingTodos[dateKey]) {
+          existingTodos[dateKey] = [];
+        }
+        const existingTaskIds = new Set(existingTodos[dateKey].map((t) => t.id));
+        for (const t of incomingList) {
+          if (t && t.id && !existingTaskIds.has(t.id)) {
+            existingTodos[dateKey].push(t);
+            existingTaskIds.add(t.id);
+          }
+        }
+      }
+    }
+    safeSet(store, STORAGE_KEYS.TODOS, existingTodos, onQuotaError);
+  }
+
+  // 3. Merge settings (keep existing, fill missing)
+  if (importedData.settings && typeof importedData.settings === "object") {
+    const currentSettings = safeGet(store, STORAGE_KEYS.SETTINGS, {});
+    const mergedSettings = { ...DEFAULT_SETTINGS, ...importedData.settings, ...currentSettings };
+    safeSet(store, STORAGE_KEYS.SETTINGS, mergedSettings, onQuotaError);
+  }
+
+  // 4. Ensure schema is current
+  store.setItem(STORAGE_KEYS.SCHEMA, CURRENT_SCHEMA_VERSION.toString());
+  return true;
+}
+
+/**
+ * Replaces all current storage data with imported data
+ */
+export function replaceImportData(storage, importedData, onQuotaError = null) {
+  const store = resolveStorage(storage);
+
+  if (Array.isArray(importedData.sessions)) {
+    safeSet(store, STORAGE_KEYS.SESSIONS, importedData.sessions, onQuotaError);
+  }
+
+  if (importedData.todos && typeof importedData.todos === "object") {
+    safeSet(store, STORAGE_KEYS.TODOS, importedData.todos, onQuotaError);
+  }
+
+  if (importedData.settings && typeof importedData.settings === "object") {
+    const settings = { ...DEFAULT_SETTINGS, ...importedData.settings };
+    safeSet(store, STORAGE_KEYS.SETTINGS, settings, onQuotaError);
+  }
+
+  if (importedData.theme && typeof importedData.theme === "string") {
+    safeSet(store, STORAGE_KEYS.THEME, importedData.theme, onQuotaError);
+  }
+
+  store.setItem(STORAGE_KEYS.SCHEMA, CURRENT_SCHEMA_VERSION.toString());
+  return true;
+}
+
+/**
+ * Resets all user data to fresh defaults (destructive action)
+ */
+export function resetAllData(storage) {
+  const store = resolveStorage(storage);
+  for (const key of Object.values(STORAGE_KEYS)) {
+    store.removeItem(key);
+  }
+  store.setItem(STORAGE_KEYS.SCHEMA, CURRENT_SCHEMA_VERSION.toString());
+  safeSet(store, STORAGE_KEYS.SETTINGS, { ...DEFAULT_SETTINGS });
+  safeSet(store, STORAGE_KEYS.SESSIONS, []);
+  safeSet(store, STORAGE_KEYS.TODOS, {});
+  safeSet(store, STORAGE_KEYS.THEME, "dark");
+  return true;
+}

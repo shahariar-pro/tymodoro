@@ -1,5 +1,6 @@
 /**
- * tasks.js - Todo task manager with subtasks, drag reorder, calendar filtering, and timer selection
+ * tasks.js - Todo task manager with estimates, tags, subtasks, drag reorder,
+ * carry over unfinished tasks, and timer selection.
  */
 import { loadTodos, saveTodos } from "./storage.js";
 
@@ -22,6 +23,7 @@ export function initTasks(storage, onTaskSelected) {
   onTaskSelectedCallback = onTaskSelected;
   setupTaskEventListeners(storage);
   renderTodoList(storage);
+  updateTagDatalist();
 }
 
 export function getCurrentTaskId() {
@@ -32,11 +34,24 @@ export function setCurrentTaskId(id) {
   currentTaskId = id;
 }
 
-export function getSelectedTaskText() {
+export function getAllTodos() {
+  return allTodos;
+}
+
+export function getSelectedTask() {
   if (!currentTaskId) return null;
   const todos = getTodosForCurrentDate();
-  const task = todos.find((t) => t.id === currentTaskId);
+  return todos.find((t) => t.id === currentTaskId) || null;
+}
+
+export function getSelectedTaskText() {
+  const task = getSelectedTask();
   return task ? task.text : null;
+}
+
+export function getSelectedTaskTag() {
+  const task = getSelectedTask();
+  return task ? task.tag || "" : "";
 }
 
 export function getCurrentCalendarDate() {
@@ -64,6 +79,32 @@ export function getCompletedTodosCount() {
 
 export function getTotalTodosCount() {
   return getTodosForCurrentDate().length;
+}
+
+export function getAllTags() {
+  const tags = new Set();
+  for (const dateKey of Object.keys(allTodos)) {
+    const list = allTodos[dateKey];
+    if (Array.isArray(list)) {
+      for (const t of list) {
+        if (t && t.tag && t.tag.trim()) {
+          tags.add(t.tag.trim());
+        }
+      }
+    }
+  }
+  return Array.from(tags).sort();
+}
+
+export function updateTagDatalist() {
+  const datalist = document.getElementById("tagDatalist");
+  if (!datalist) return;
+  datalist.innerHTML = "";
+  for (const tag of getAllTags()) {
+    const opt = document.createElement("option");
+    opt.value = tag;
+    datalist.appendChild(opt);
+  }
 }
 
 export function updateTodoTitle() {
@@ -100,11 +141,15 @@ export function updateTodoProgress() {
 export function addTodo(storage) {
   const input = document.getElementById("todoInput");
   const prioritySelect = document.getElementById("todoPriority");
+  const estimateInput = document.getElementById("todoEstimate");
+  const tagInput = document.getElementById("todoTag");
   if (!input) return;
 
   const text = input.value.trim();
   if (text === "") return;
   const priority = prioritySelect ? prioritySelect.value : "medium";
+  const estimate = estimateInput ? Math.max(0, Math.min(12, parseInt(estimateInput.value, 10) || 0)) : 0;
+  const tag = tagInput ? tagInput.value.trim() : "";
 
   const newTodo = {
     id: Date.now(),
@@ -113,17 +158,20 @@ export function addTodo(storage) {
     completed: false,
     createdAt: new Date().toISOString(),
     subtasks: [],
-    est: 0,
+    estimate,
     done: 0,
-    tag: null,
+    tag,
   };
 
   const todos = getTodosForCurrentDate();
   todos.unshift(newTodo);
   input.value = "";
+  if (estimateInput) estimateInput.value = "";
+  if (tagInput) tagInput.value = "";
 
   saveTodos(storage, allTodos);
   renderTodoList(storage);
+  updateTagDatalist();
 }
 
 export function toggleTodo(id, storage) {
@@ -147,6 +195,7 @@ export function deleteTodo(id, storage) {
 
   saveTodos(storage, allTodos);
   renderTodoList(storage);
+  updateTagDatalist();
 }
 
 export function clearCompleted(storage) {
@@ -201,6 +250,101 @@ export function deleteSubtask(parentId, subtaskId, storage) {
   }
 }
 
+/**
+ * Increments the pomodoro count for a task on session completion
+ */
+export function incrementTaskPomodoro(taskId, storage) {
+  if (!taskId) return null;
+  for (const dateKey of Object.keys(allTodos)) {
+    const list = allTodos[dateKey];
+    if (Array.isArray(list)) {
+      const todo = list.find((t) => t.id === taskId);
+      if (todo) {
+        todo.done = (todo.done || 0) + 1;
+        saveTodos(storage, allTodos);
+        renderTodoList(storage);
+        return {
+          taskId: todo.id,
+          taskName: todo.text,
+          tag: todo.tag || "",
+          done: todo.done,
+          estimate: todo.estimate || 0,
+        };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Brings over unfinished tasks from previous days into current day
+ */
+export function bringOverUnfinishedTasks(storage) {
+  const curDate = new Date(currentCalendarDate);
+  curDate.setHours(0, 0, 0, 0);
+
+  let foundPreviousTodos = null;
+
+  // Search backward up to 30 days for unfinished tasks
+  for (let i = 1; i <= 30; i++) {
+    const prevDate = new Date(curDate);
+    prevDate.setDate(prevDate.getDate() - i);
+    const prevKey = prevDate.toDateString();
+    const list = allTodos[prevKey];
+    if (Array.isArray(list)) {
+      const uncompleted = list.filter((t) => !t.completed);
+      if (uncompleted.length > 0) {
+        foundPreviousTodos = uncompleted;
+        break;
+      }
+    }
+  }
+
+  if (!foundPreviousTodos || foundPreviousTodos.length === 0) {
+    return { count: 0, message: "No unfinished tasks found from previous days." };
+  }
+
+  const currentTodos = getTodosForCurrentDate();
+  const existingTexts = new Set(currentTodos.map((t) => t.text.toLowerCase().trim()));
+  let copiedCount = 0;
+
+  for (const t of foundPreviousTodos) {
+    if (!existingTexts.has(t.text.toLowerCase().trim())) {
+      currentTodos.push({
+        id: Date.now() + Math.random(),
+        text: t.text,
+        priority: t.priority || "medium",
+        completed: false,
+        createdAt: new Date().toISOString(),
+        subtasks: (t.subtasks || []).map((st) => ({
+          id: Date.now() + Math.random(),
+          text: st.text,
+          completed: false,
+        })),
+        estimate: t.estimate || 0,
+        done: 0,
+        tag: t.tag || "",
+      });
+      existingTexts.add(t.text.toLowerCase().trim());
+      copiedCount++;
+    }
+  }
+
+  if (copiedCount > 0) {
+    saveTodos(storage, allTodos);
+    renderTodoList(storage);
+    updateTagDatalist();
+  }
+
+  return {
+    count: copiedCount,
+    message:
+      copiedCount > 0
+        ? `Brought over ${copiedCount} unfinished task${copiedCount === 1 ? "" : "s"}.`
+        : "All unfinished tasks from previous days are already in today's list.",
+  };
+}
+
 export function selectTask(id) {
   currentTaskId = currentTaskId === id ? null : id;
   const taskText = getSelectedTaskText();
@@ -220,14 +364,21 @@ export function startEdit(id) {
   }, 0);
 }
 
-export function saveEdit(id, newText, storage) {
+export function saveEdit(id, newText, newEstimate, newTag, storage) {
   const trimmed = (newText || "").trim();
   if (trimmed !== "") {
     const todos = getTodosForCurrentDate();
     const todo = todos.find((t) => t.id === id);
     if (todo) {
       todo.text = trimmed;
+      if (newEstimate !== undefined) {
+        todo.estimate = Math.max(0, Math.min(12, parseInt(newEstimate, 10) || 0));
+      }
+      if (newTag !== undefined) {
+        todo.tag = (newTag || "").trim();
+      }
       saveTodos(storage, allTodos);
+      updateTagDatalist();
     }
   }
   editingTodoId = null;
@@ -253,8 +404,8 @@ export function renderTodoList(storage) {
 
   if (filteredTodos.length === 0) {
     const emptyMessage = showCompleted
-      ? "No tasks for this day yet.<br>Add your first task to get started!"
-      : "No active tasks.<br>Great job staying on top of things!";
+      ? "No tasks for this day yet.<br>Add your first task above!"
+      : "No active tasks.<br>Great job staying focused!";
 
     todoList.innerHTML = `
       <div class="empty-state">
@@ -284,18 +435,38 @@ export function renderTodoList(storage) {
            
         <div class="todo-item ${todo.completed ? "completed" : ""}">
           <div class="todo-priority-indicator ${todo.priority || "medium"}"></div>
-          <div class="todo-checkbox ${todo.completed ? "checked" : ""}" data-action="toggle-todo" data-id="${todo.id}">
+          <div class="todo-checkbox ${todo.completed ? "checked" : ""}" data-action="toggle-todo" data-id="${todo.id}" title="Toggle task completed">
             ${todo.completed ? '<i data-lucide="check"></i>' : ""}
           </div>
           ${
             editingTodoId === todo.id
               ? `
-            <textarea class="todo-edit-input" 
-                   id="editInput${todo.id}" maxlength="100"
-                   data-action="edit-input" data-id="${todo.id}">${escapeHtml(todo.text)}</textarea>
+            <div class="todo-edit-container">
+              <textarea class="todo-edit-input" id="editInput${todo.id}" maxlength="100" data-action="edit-input" data-id="${todo.id}">${escapeHtml(todo.text)}</textarea>
+              <div class="todo-edit-meta-row">
+                <input type="number" class="estimate-input" id="editEstimate${todo.id}" min="0" max="12" value="${todo.estimate || 0}" placeholder="Est" title="Estimated pomodoros">
+                <input type="text" class="tag-input" id="editTag${todo.id}" list="tagDatalist" maxlength="20" value="${escapeHtml(todo.tag || "")}" placeholder="Tag" title="Tag">
+              </div>
+            </div>
           `
               : `
-            <div class="todo-text" data-action="select-task" data-id="${todo.id}">${escapeHtml(todo.text)}</div>
+            <div class="todo-text-wrap" data-action="select-task" data-id="${todo.id}">
+              <span class="todo-text">${escapeHtml(todo.text)}</span>
+              <span class="task-meta-badges">
+                ${
+                  todo.estimate > 0
+                    ? `<span class="task-pomo-badge" title="${todo.done || 0} of ${todo.estimate} completed"><i data-lucide="timer"></i> ${todo.done || 0}/${todo.estimate}</span>`
+                    : todo.done > 0
+                      ? `<span class="task-pomo-badge" title="${todo.done} completed"><i data-lucide="timer"></i> ${todo.done}</span>`
+                      : ""
+                }
+                ${
+                  todo.tag
+                    ? `<span class="task-tag-badge">${escapeHtml(todo.tag)}</span>`
+                    : ""
+                }
+              </span>
+            </div>
           `
           }
           <div class="todo-actions">
@@ -330,7 +501,7 @@ export function renderTodoList(storage) {
                         ${st.completed ? '<i data-lucide="check" style="width: 12px; height: 12px;"></i>' : ""}
                     </div>
                     <span class="subtask-text">${escapeHtml(st.text)}</span>
-                    <button class="subtask-delete-btn" data-action="delete-subtask" data-parent-id="${todo.id}" data-id="${st.id}">
+                    <button class="subtask-delete-btn" data-action="delete-subtask" data-parent-id="${todo.id}" data-id="${st.id}" title="Delete subtask">
                         <i data-lucide="x" style="width: 12px; height: 12px;"></i>
                     </button>
                 </div>
@@ -341,7 +512,7 @@ export function renderTodoList(storage) {
         
         <div class="subtask-input-container">
             <input type="text" class="subtask-input" id="subtaskInput${todo.id}" placeholder="Add subtask..." data-parent-id="${todo.id}">
-            <button class="add-subtask-btn" data-action="add-subtask" data-parent-id="${todo.id}">
+            <button class="add-subtask-btn" data-action="add-subtask" data-parent-id="${todo.id}" title="Add subtask">
                 <i data-lucide="plus" style="width: 16px; height: 16px;"></i>
             </button>
         </div>
@@ -354,43 +525,52 @@ export function renderTodoList(storage) {
   if (window.lucide && typeof window.lucide.createIcons === "function") {
     window.lucide.createIcons();
   }
+
+  updateTodoTitle();
   updateTodoProgress();
 }
 
 /**
- * Event delegation for task list to remove all inline onclick handlers
+ * Event Listeners delegated for tasks
  */
 function setupTaskEventListeners(storage) {
   const todoList = document.getElementById("todoList");
   if (!todoList) return;
 
-  // Single delegated click listener
   todoList.addEventListener("click", (e) => {
-    const target = e.target.closest("[data-action]");
-    if (!target) return;
+    const actionEl = e.target.closest("[data-action]");
+    if (!actionEl) return;
 
-    const action = target.dataset.action;
-    const id = target.dataset.id ? Number(target.dataset.id) : null;
-    const parentId = target.dataset.parentId ? Number(target.dataset.parentId) : null;
+    const action = actionEl.dataset.action;
+    const id = actionEl.dataset.id ? Number(actionEl.dataset.id) : null;
+    const parentId = actionEl.dataset.parentId ? Number(actionEl.dataset.parentId) : null;
 
     if (action === "toggle-todo" && id) {
       e.stopPropagation();
       toggleTodo(id, storage);
+    } else if (action === "delete-todo" && id) {
+      e.stopPropagation();
+      deleteTodo(id, storage);
     } else if (action === "select-task" && id) {
       selectTask(id);
     } else if (action === "start-edit" && id) {
       e.stopPropagation();
       startEdit(id);
-    } else if (action === "save-edit" && id) {
-      e.stopPropagation();
-      const input = document.getElementById(`editInput${id}`);
-      saveEdit(id, input ? input.value : "", storage);
     } else if (action === "cancel-edit") {
       e.stopPropagation();
       cancelEdit();
-    } else if (action === "delete-todo" && id) {
+    } else if (action === "save-edit" && id) {
       e.stopPropagation();
-      deleteTodo(id, storage);
+      const input = document.getElementById(`editInput${id}`);
+      const estInput = document.getElementById(`editEstimate${id}`);
+      const tagInput = document.getElementById(`editTag${id}`);
+      saveEdit(
+        id,
+        input?.value,
+        estInput?.value,
+        tagInput?.value,
+        storage,
+      );
     } else if (action === "toggle-subtask" && parentId && id) {
       e.stopPropagation();
       toggleSubtask(parentId, id, storage);
@@ -409,9 +589,9 @@ function setupTaskEventListeners(storage) {
     }
   });
 
-  // Enter key support for subtasks & edit inputs
+  // Enter keys on subtask & edit inputs
   todoList.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
+    if (e.key === "Enter" && !e.shiftKey) {
       if (e.target.classList.contains("subtask-input")) {
         e.preventDefault();
         const parentId = Number(e.target.dataset.parentId);
@@ -423,84 +603,67 @@ function setupTaskEventListeners(storage) {
         e.preventDefault();
         const id = Number(e.target.dataset.id);
         if (id) {
-          saveEdit(id, e.target.value, storage);
+          const estInput = document.getElementById(`editEstimate${id}`);
+          const tagInput = document.getElementById(`editTag${id}`);
+          saveEdit(id, e.target.value, estInput?.value, tagInput?.value, storage);
         }
       }
     } else if (e.key === "Escape" && e.target.classList.contains("todo-edit-input")) {
+      e.preventDefault();
       cancelEdit();
     }
   });
 
-  // Drag and drop delegation
+  // HTML5 Drag and Drop reordering
   todoList.addEventListener("dragstart", (e) => {
-    draggedElement = e.target.closest(".todo-item-wrapper");
-    if (!draggedElement) return;
-    draggedElement.classList.add("dragging");
+    const item = e.target.closest(".todo-item-wrapper");
+    if (!item) return;
+    draggedElement = item;
+    item.classList.add("dragging");
     e.dataTransfer.effectAllowed = "move";
-    e.dataTransfer.setData("text/plain", draggedElement.dataset.id);
+    e.dataTransfer.setData("text/plain", item.dataset.id);
   });
 
   todoList.addEventListener("dragover", (e) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = "move";
-    const container = e.target.closest("#todoList");
-    if (!container) return;
+    const item = e.target.closest(".todo-item-wrapper");
+    if (!item || item === draggedElement) return;
 
-    const afterElement = getDragAfterElement(container, e.clientY);
-    const dragging = document.querySelector(".dragging");
-    if (!dragging) return;
-
-    if (afterElement == null) {
-      container.appendChild(dragging);
+    const rect = item.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+    if (e.clientY < midY) {
+      item.parentNode.insertBefore(draggedElement, item);
     } else {
-      container.insertBefore(dragging, afterElement);
-    }
-  });
-
-  todoList.addEventListener("drop", (e) => {
-    e.preventDefault();
-    const draggedId = Number(e.dataTransfer.getData("text/plain"));
-    const targetWrapper = e.target.closest(".todo-item-wrapper");
-    if (!targetWrapper) return;
-    const targetId = Number(targetWrapper.dataset.id);
-
-    if (draggedId && targetId && draggedId !== targetId) {
-      const todos = getTodosForCurrentDate();
-      const draggedIndex = todos.findIndex((t) => t.id === draggedId);
-      const targetIndex = todos.findIndex((t) => t.id === targetId);
-
-      if (draggedIndex > -1 && targetIndex > -1) {
-        const [draggedTodo] = todos.splice(draggedIndex, 1);
-        todos.splice(targetIndex, 0, draggedTodo);
-        saveTodos(storage, allTodos);
-        renderTodoList(storage);
-      }
+      item.parentNode.insertBefore(draggedElement, item.nextSibling);
     }
   });
 
   todoList.addEventListener("dragend", () => {
     if (draggedElement) {
       draggedElement.classList.remove("dragging");
-    }
-    draggedElement = null;
-    renderTodoList(storage);
-  });
-}
+      draggedElement = null;
 
-function getDragAfterElement(container, y) {
-  const draggableElements = [...container.querySelectorAll(".todo-item-wrapper:not(.dragging)")];
+      // Re-read DOM order and persist
+      const wrappers = todoList.querySelectorAll(".todo-item-wrapper");
+      const newOrderIds = Array.from(wrappers).map((w) => Number(w.dataset.id));
+      const todos = getTodosForCurrentDate();
 
-  return draggableElements.reduce(
-    (closest, child) => {
-      const box = child.getBoundingClientRect();
-      const offset = y - box.top - box.height / 2;
-
-      if (offset < 0 && offset > closest.offset) {
-        return { offset: offset, element: child };
-      } else {
-        return closest;
+      const reordered = [];
+      for (const id of newOrderIds) {
+        const found = todos.find((t) => t.id === id);
+        if (found) reordered.push(found);
       }
-    },
-    { offset: Number.NEGATIVE_INFINITY },
-  ).element;
+
+      // Add any filtered-out todos to the end
+      for (const t of todos) {
+        if (!reordered.includes(t)) {
+          reordered.push(t);
+        }
+      }
+
+      const dateKey = currentCalendarDate.toDateString();
+      allTodos[dateKey] = reordered;
+      saveTodos(storage, allTodos);
+    }
+  });
 }
