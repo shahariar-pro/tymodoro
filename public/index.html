@@ -4,58 +4,84 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TYMODORO - Focus Timer</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%23000' stroke='%23fff' stroke-width='3'/><circle cx='50' cy='50' r='20' fill='%23fff'/></svg>" type="image/svg+xml">
+    <meta name="description" content="A fast, private, distraction-free Pomodoro focus timer and daily task companion with ambient sounds and statistics.">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta property="og:title" content="TYMODORO - Focus Timer">
+    <meta property="og:description" content="A fast, private, distraction-free Pomodoro focus timer and daily task companion.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="icons/icon-512.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
     <link rel="stylesheet" href="css/style.css">
     <script src="vendor/lucide.min.js"></script>
 </head>
 <body data-theme="dark">
+    <noscript>
+        <div style="padding: 2rem; text-align: center; background: #000; color: #fff;">
+            <h2>JavaScript Required</h2>
+            <p>Tymodoro requires JavaScript to run. Please enable JavaScript in your browser settings to continue.</p>
+        </div>
+    </noscript>
+
+    <!-- Visually hidden polite live region for screen reader announcements -->
+    <div id="timerAnnouncement" class="sr-only" aria-live="polite"></div>
+
     <div class="app">
-        <div class="header">
+        <header class="header" role="banner">
             <div class="logo-container">
                 <div class="logo">TYMODORO</div>
                 <div class="logo-dot"></div>
             </div>
-            <div class="header-controls">
-                <button class="icon-btn" title="Toggle todo list" id="todoToggleBtn">
+            <nav class="header-controls" aria-label="Application controls">
+                <button class="icon-btn" title="Toggle todo list (T)" id="todoToggleBtn" aria-label="Toggle todo list">
                     <i data-lucide="list-todo"></i>
                 </button>
-                <button class="icon-btn" title="Calendar" id="calendarBtn">
+                <button class="icon-btn" title="Calendar" id="calendarBtn" aria-label="Open productivity calendar">
                     <i data-lucide="calendar"></i>
                 </button>
-                <button class="icon-btn" title="Toggle ambient sounds" id="whiteNoiseBtn">
+                <button class="icon-btn" title="Toggle ambient sounds" id="whiteNoiseBtn" aria-label="Toggle ambient sounds">
                     <i data-lucide="waves"></i>
                 </button>
-                <button class="icon-btn" title="Change theme" id="themeBtn">
+                <button class="icon-btn" title="Change theme" id="themeBtn" aria-label="Change color theme">
                     <i data-lucide="palette"></i>
                 </button>
-                <button class="icon-btn" title="Statistics" id="statsBtn">
+                <button class="icon-btn" title="Statistics" id="statsBtn" aria-label="View statistics">
                     <i data-lucide="bar-chart-3"></i>
                 </button>
-                <button class="icon-btn" title="Settings" id="settingsBtn">
+                <button class="icon-btn" title="Settings" id="settingsBtn" aria-label="Open settings">
                     <i data-lucide="settings"></i>
                 </button>
-                <button class="icon-btn" title="About" id="aboutBtn">
+                <button class="icon-btn" title="Focus Mode (F)" id="focusModeBtn" aria-label="Enter fullscreen focus mode">
+                    <i data-lucide="maximize-2"></i>
+                </button>
+                <button class="icon-btn" title="Keyboard Shortcuts (?)" id="shortcutsBtn" aria-label="View keyboard shortcuts">
+                    <i data-lucide="help-circle"></i>
+                </button>
+                <button class="icon-btn" title="About" id="aboutBtn" aria-label="About Tymodoro">
                     <i data-lucide="info"></i>
                 </button>
-                <button class="icon-btn" title="Open in Window" id="floatingWindowBtn">
+                <button class="icon-btn" title="Mini Timer / Picture-in-Picture" id="floatingWindowBtn" aria-label="Open mini timer window">
                     <i data-lucide="external-link"></i>
                 </button>
-            </div>
-        </div>
+            </nav>
+        </header>
 
-        <div class="main-content timer-only" id="mainContent">
-            <div class="calendar-section hidden" id="calendarSection">
+        <main class="main-content timer-only" id="mainContent" role="main">
+            <section class="calendar-section hidden" id="calendarSection" aria-label="Productivity Calendar">
                 <div class="calendar-header">
                     <h2 class="calendar-title">
                         <i data-lucide="calendar"></i>
                         Productivity Calendar
                     </h2>
                     <div class="calendar-nav">
-                        <button class="calendar-nav-btn" id="prevMonthBtn" title="Previous Month">
+                        <button class="calendar-nav-btn" id="prevMonthBtn" title="Previous Month" aria-label="Previous Month">
                             <i data-lucide="chevron-left"></i>
                         </button>
                         <span id="currentMonthYear"></span>
-                        <button class="calendar-nav-btn" id="nextMonthBtn" title="Next Month">
+                        <button class="calendar-nav-btn" id="nextMonthBtn" title="Next Month" aria-label="Next Month">
                             <i data-lucide="chevron-right"></i>
                         </button>
                     </div>
@@ -79,9 +105,9 @@
                         <span>5+ sessions</span>
                     </div>
                 </div>
-            </div>
+            </section>
 
-            <div class="todo-section hidden" id="todoSection">
+            <section class="todo-section hidden" id="todoSection" aria-label="Tasks Companion">
                 <div class="todo-header">
                     <h2 class="todo-title" id="todoTitle">
                         <i data-lucide="check-square"></i>
@@ -98,33 +124,34 @@
                         id="todoInput" 
                         placeholder="Add a new task..."
                         maxlength="100"
+                        aria-label="New task name"
                     >
-                    <select id="todoPriority" class="priority-select">
+                    <select id="todoPriority" class="priority-select" aria-label="Task priority">
                         <option value="low">Low</option>
                         <option value="medium" selected>Medium</option>
                         <option value="high">High</option>
                     </select>
-                    <button class="add-todo-btn" id="addTodoBtn" title="Add task">
+                    <button class="add-todo-btn" id="addTodoBtn" title="Add task" aria-label="Add task">
                         <i data-lucide="plus"></i>
                     </button>
                 </div>
                 
-                <div class="todo-list" id="todoList">
+                <div class="todo-list" id="todoList" role="list" aria-label="Todo task list">
                 </div>
                 
                 <div class="todo-footer">
-                    <button class="clear-completed-btn" id="clearCompletedBtn">
+                    <button class="clear-completed-btn" id="clearCompletedBtn" aria-label="Clear completed tasks">
                         <i data-lucide="trash-2"></i>
                         Clear Completed
                     </button>
                 </div>
-            </div>
+            </section>
 
-            <div class="timer-section">
+            <section class="timer-section" aria-label="Focus Timer">
                 <div class="session-label" id="sessionLabel">Deep Focus Session</div>
                 
-                <div class="timer-container">
-                    <svg class="progress-ring" viewBox="0 0 100 100">
+                <div class="timer-container" role="timer" aria-live="off" aria-label="Focus timer countdown">
+                    <svg class="progress-ring" viewBox="0 0 100 100" aria-hidden="true">
                         <circle class="progress-ring-bg" cx="50" cy="50" r="45"/>
                         <circle class="progress-ring-fill" cx="50" cy="50" r="45" 
                                 stroke-dasharray="283" stroke-dashoffset="283" id="progressCircle"/>
@@ -136,62 +163,62 @@
                     </div>
                 </div>
 
-                <button class="play-btn" id="playBtn" title="Start/Pause timer">
+                <button class="play-btn" id="playBtn" title="Start/Pause timer (Space)" aria-label="Start or Pause Timer">
                     <i data-lucide="play" id="playIcon"></i>
                 </button>
 
                 <div class="control-buttons">
-                    <button class="ctrl-btn" id="resetBtn" title="Reset timer">
+                    <button class="ctrl-btn" id="resetBtn" title="Reset timer (R)" aria-label="Reset Timer">
                         <i data-lucide="rotate-ccw"></i>
                         Reset
                     </button>
-                    <button class="ctrl-btn" id="skipBtn" title="Skip session">
+                    <button class="ctrl-btn" id="skipBtn" title="Skip session (S)" aria-label="Skip Session">
                         <i data-lucide="skip-forward"></i>
                         Skip
                     </button>
                 </div>
-            </div>
-        </div>
+            </section>
+        </main>
 
-        <div class="sound-indicator" id="soundIndicator" title="Toggle notification sound">
+        <div class="sound-indicator" id="soundIndicator" title="Toggle notification sound (M)" aria-label="Toggle Sound" role="button" tabindex="0">
             <i data-lucide="bell"></i>
         </div>
 
-        <div class="white-noise-controls" id="whiteNoiseControls" style="display: none;">
+        <div class="white-noise-controls" id="whiteNoiseControls" style="display: none;" role="region" aria-label="Ambient Sound Synthesizer">
             <div class="noise-header">
                 <h3>Ambient Sounds</h3>
                 <div class="noise-tabs">
                     <button class="noise-tab active" id="regularTab">Regular</button>
                     <button class="noise-tab" id="binauralTab">Binaural</button>
                 </div>
-                <button class="close-noise-btn" id="closeNoiseBtn" title="Close ambient sounds">
+                <button class="close-noise-btn" id="closeNoiseBtn" title="Close ambient sounds" aria-label="Close ambient sounds">
                     <i data-lucide="x"></i>
                 </button>
             </div>
             
             <div class="noise-content" id="regularContent">
                 <div class="noise-options">
-                    <button class="noise-btn" data-sound="storm">
+                    <button class="noise-btn" data-sound="storm" aria-label="Rain and storm ambient sound">
                         <i data-lucide="cloud-lightning"></i>
                         <span>Storm</span>
                     </button>
-                    <button class="noise-btn" data-sound="forest">
+                    <button class="noise-btn" data-sound="forest" aria-label="Forest ambient sound">
                         <i data-lucide="trees"></i>
                         <span>Forest</span>
                     </button>
-                    <button class="noise-btn" data-sound="ocean">
+                    <button class="noise-btn" data-sound="ocean" aria-label="Ocean waves ambient sound">
                         <i data-lucide="waves"></i>
                         <span>Ocean</span>
                     </button>
-                    <button class="noise-btn" data-sound="coffee">
+                    <button class="noise-btn" data-sound="coffee" aria-label="Café ambient sound">
                         <i data-lucide="coffee"></i>
                         <span>Café</span>
                     </button>
-                    <button class="noise-btn" data-sound="fire">
+                    <button class="noise-btn" data-sound="fire" aria-label="Fireplace ambient sound">
                         <i data-lucide="flame"></i>
                         <span>Fireplace</span>
                     </button>
-                    <button class="noise-btn" data-sound="wind">
+                    <button class="noise-btn" data-sound="wind" aria-label="Wind ambient sound">
                         <i data-lucide="wind"></i>
                         <span>Wind</span>
                     </button>
@@ -200,27 +227,27 @@
             
             <div class="noise-content hidden" id="binauralContent">
                 <div class="noise-options">
-                    <button class="noise-btn" data-sound="gamma40">
+                    <button class="noise-btn" data-sound="gamma40" aria-label="40Hz Gamma binaural frequency">
                         <i data-lucide="zap"></i>
                         <span>40Hz Gamma</span>
                     </button>
-                    <button class="noise-btn" data-sound="beta20">
+                    <button class="noise-btn" data-sound="beta20" aria-label="20Hz Beta binaural frequency">
                         <i data-lucide="brain"></i>
                         <span>20Hz Beta</span>
                     </button>
-                    <button class="noise-btn" data-sound="alpha10">
+                    <button class="noise-btn" data-sound="alpha10" aria-label="10Hz Alpha binaural frequency">
                         <i data-lucide="circle-dot"></i>
                         <span>10Hz Alpha</span>
                     </button>
-                    <button class="noise-btn" data-sound="theta6">
+                    <button class="noise-btn" data-sound="theta6" aria-label="6Hz Theta binaural frequency">
                         <i data-lucide="moon"></i>
                         <span>6Hz Theta</span>
                     </button>
-                    <button class="noise-btn" data-sound="delta3">
+                    <button class="noise-btn" data-sound="delta3" aria-label="3Hz Delta binaural frequency">
                         <i data-lucide="bed"></i>
                         <span>3Hz Delta</span>
                     </button>
-                    <button class="noise-btn" data-sound="focus15">
+                    <button class="noise-btn" data-sound="focus15" aria-label="15Hz Focus binaural frequency">
                         <i data-lucide="target"></i>
                         <span>15Hz Focus</span>
                     </button>
@@ -228,21 +255,21 @@
             </div>
             
             <div class="volume-control">
-                <i data-lucide="volume-1"></i>
-                <input type="range" id="noiseVolume" min="0" max="100" value="30">
-                <i data-lucide="volume-2"></i>
+                <i data-lucide="volume-1" aria-hidden="true"></i>
+                <input type="range" id="noiseVolume" min="0" max="100" value="30" aria-label="Ambient noise volume">
+                <i data-lucide="volume-2" aria-hidden="true"></i>
             </div>
         </div>
 
-        <div class="theme-selector" id="themeSelector" style="display: none;">
+        <div class="theme-selector" id="themeSelector" style="display: none;" role="region" aria-label="Theme selector">
             <div class="theme-header">
                 <h3>Choose Theme</h3>
-                <button class="close-theme-btn" id="closeThemeBtn" title="Close themes">
+                <button class="close-theme-btn" id="closeThemeBtn" title="Close themes" aria-label="Close themes">
                     <i data-lucide="x"></i>
                 </button>
             </div>
             <div class="theme-grid">
-                <button class="theme-option" data-theme="light">
+                <button class="theme-option" data-theme="light" aria-label="Light theme">
                     <span>Light</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #ffffff; border-color: #e5e7eb;"></span>
@@ -250,7 +277,7 @@
                         <span class="theme-dot" style="background: #000000;"></span>
                     </div>
                 </button>
-                <button class="theme-option active" data-theme="dark">
+                <button class="theme-option active" data-theme="dark" aria-label="Dark theme">
                     <span>Dark</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #000000;"></span>
@@ -258,7 +285,7 @@
                         <span class="theme-dot" style="background: #ffffff;"></span>
                     </div>
                 </button>
-                <button class="theme-option" data-theme="ocean">
+                <button class="theme-option" data-theme="ocean" aria-label="Ocean theme">
                     <span>Ocean</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #0f172a;"></span>
@@ -266,7 +293,7 @@
                         <span class="theme-dot" style="background: #0ea5e9;"></span>
                     </div>
                 </button>
-                <button class="theme-option" data-theme="forest">
+                <button class="theme-option" data-theme="forest" aria-label="Forest theme">
                     <span>Forest</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #0f1419;"></span>
@@ -274,7 +301,7 @@
                         <span class="theme-dot" style="background: #48bb78;"></span>
                     </div>
                 </button>
-                <button class="theme-option" data-theme="sunset">
+                <button class="theme-option" data-theme="sunset" aria-label="Sunset theme">
                     <span>Sunset</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #1a1625;"></span>
@@ -282,7 +309,7 @@
                         <span class="theme-dot" style="background: #f59e0b;"></span>
                     </div>
                 </button>
-                <button class="theme-option" data-theme="purple">
+                <button class="theme-option" data-theme="purple" aria-label="Purple theme">
                     <span>Purple</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #1e1b4b;"></span>
@@ -290,7 +317,7 @@
                         <span class="theme-dot" style="background: #a855f7;"></span>
                     </div>
                 </button>
-                <button class="theme-option" data-theme="rose">
+                <button class="theme-option" data-theme="rose" aria-label="Rose theme">
                     <span>Rose</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #1f0f1a;"></span>
@@ -298,21 +325,22 @@
                         <span class="theme-dot" style="background: #ec4899;"></span>
                     </div>
                 </button>
-                <button class="theme-option" data-theme="blush">
+                <button class="theme-option" data-theme="blush" aria-label="Blush theme">
                     <span>Blush</span>
                     <div class="theme-dots">
                         <span class="theme-dot" style="background: #faf8f7; border-color: #e8d8d1;"></span>
-                        <span class="theme-dot" style="background: #6b5b52;"></span>
-                        <span class="theme-dot" style="background: #f8a8d8;"></span>
+                        <span class="theme-dot" style="background: #57463e;"></span>
+                        <span class="theme-dot" style="background: #d946ef;"></span>
                     </div>
                 </button>
             </div>
         </div>
 
-        <div class="modal-overlay" id="skipModalOverlay">
+        <!-- Skip confirmation modal -->
+        <div class="modal-overlay" id="skipModalOverlay" role="dialog" aria-modal="true" aria-labelledby="skipModalTitle">
             <div class="modal">
                 <div class="modal-header">
-                    <div class="modal-title">Skip Session?</div>
+                    <div class="modal-title" id="skipModalTitle">Skip Session?</div>
                 </div>
                 <div id="skipModalContent">
                     <p>This session is too short to be counted in your statistics. You've completed <span id="sessionPercent">0</span>% of the session.</p>
@@ -324,11 +352,12 @@
             </div>
         </div>
 
-        <div class="modal-overlay" id="modalOverlay">
+        <!-- Standard modal dialog -->
+        <div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
             <div class="modal">
                 <div class="modal-header">
                     <div class="modal-title" id="modalTitle">Statistics</div>
-                    <button class="close-btn" id="closeModalBtn" title="Close">
+                    <button class="close-btn" id="closeModalBtn" title="Close modal (Esc)" aria-label="Close modal">
                         <i data-lucide="x"></i>
                     </button>
                 </div>
@@ -338,10 +367,11 @@
             </div>
         </div>
 
-        <div class="floating-widget" id="floatingWidget">
+        <!-- On-screen draggable floating widget -->
+        <div class="floating-widget" id="floatingWidget" role="region" aria-label="Floating timer widget">
             <div class="floating-widget-header">
                 <span id="floatingSessionLabel">Deep Focus</span>
-                <button class="floating-close-btn" id="closeFloatingWidgetBtn" title="Close widget">
+                <button class="floating-close-btn" id="closeFloatingWidgetBtn" title="Close widget" aria-label="Close floating widget">
                     <i data-lucide="x"></i>
                 </button>
             </div>
@@ -349,14 +379,39 @@
                 <div id="floatingTimerTime">25:00</div>
             </div>
             <div class="floating-controls">
-                <button class="floating-btn" id="floatingPlayBtn" title="Play/Pause">
+                <button class="floating-btn" id="floatingPlayBtn" title="Start/Pause" aria-label="Start or pause timer">
                     <i data-lucide="play" id="floatingPlayIcon"></i>
                 </button>
-                <button class="floating-btn" id="floatingSkipBtn" title="Skip session">
+                <button class="floating-btn" id="floatingSkipBtn" title="Skip session" aria-label="Skip session">
                     <i data-lucide="skip-forward"></i>
                 </button>
             </div>
-            <div class="floating-resize-handle"></div>
+            <div class="floating-resize-handle" aria-hidden="true"></div>
+        </div>
+
+        <!-- Fullscreen Focus Mode Overlay -->
+        <div class="focus-mode-overlay" id="focusModeOverlay" aria-hidden="true" role="dialog" aria-modal="true" aria-label="Fullscreen focus mode">
+            <div class="focus-mode-top-bar">
+                <button class="focus-mode-icon-btn" id="focusModeFsBtn" title="Toggle Fullscreen" aria-label="Toggle Fullscreen">
+                    <i data-lucide="maximize"></i>
+                </button>
+                <button class="focus-mode-icon-btn" id="focusModeExitBtn" title="Exit Focus Mode (Esc)" aria-label="Exit Focus Mode">
+                    <i data-lucide="x"></i>
+                </button>
+            </div>
+            <div class="focus-mode-content">
+                <div class="focus-mode-phase" id="focusModePhase">Focus Session</div>
+                <div class="focus-mode-task" id="focusModeTask"></div>
+                <div class="focus-mode-time" id="focusModeTime">25:00</div>
+                <div class="focus-mode-controls">
+                    <button class="focus-mode-btn play" id="focusModePlayBtn" title="Start/Pause" aria-label="Start or Pause Timer">
+                        <i data-lucide="play" id="focusModePlayIcon"></i>
+                    </button>
+                    <button class="focus-mode-btn" id="focusModeSkipBtn" title="Skip Session" aria-label="Skip Session">
+                        <i data-lucide="skip-forward"></i>
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 

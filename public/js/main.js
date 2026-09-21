@@ -1,6 +1,7 @@
 /**
  * main.js - Application entry point
- * Wires timer engine, background Web Worker, storage migration, UI, audio, and tasks.
+ * Wires timer engine, background Web Worker, storage migration, UI, audio alarms,
+ * PWA Service Worker, Screen Wake Lock, Document Picture-in-Picture, and Focus Mode.
  */
 
 import * as timer from "./timer.js";
@@ -31,12 +32,18 @@ let currentMonthDate = new Date();
 let tickWorker = null;
 let fallbackInterval = null;
 let floatingWindow = null;
-let floatingWidgetVisible = false;
+let pipWindow = null;
 let isDraggingWidget = false;
 let lastPersistTime = 0;
+let titleFlashInterval = null;
+let wakeLock = null;
+let isFocusModeActive = false;
 
 // Notification permission state
-let notificationPermission = typeof window !== "undefined" && "Notification" in window ? Notification.permission === "granted" : false;
+let notificationPermission =
+  typeof window !== "undefined" && "Notification" in window
+    ? Notification.permission === "granted"
+    : false;
 
 function onQuotaError(err, key) {
   showToast("Storage quota exceeded. Some changes could not be saved.", 5000, "error");
@@ -54,6 +61,7 @@ document.addEventListener("DOMContentLoaded", () => {
   sessions = storage.loadSessions(window.localStorage);
   currentTheme = storage.loadTheme(window.localStorage);
   document.body.setAttribute("data-theme", currentTheme);
+  updateMetaThemeColor(currentTheme);
 
   // 3. Initialize modals & tasks
   initModals();
@@ -64,6 +72,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     updateSessionLabel();
     updateFloatingWindow();
+    updatePipWindow();
+    updateFocusModeDisplay();
   });
 
   // 4. Restore or initialize timer state
@@ -94,23 +104,108 @@ document.addEventListener("DOMContentLoaded", () => {
   setupKeyboardShortcuts();
   setupFloatingWidgetDrag();
 
-  // 8. Initial render
+  // 8. Register Service Worker for PWA
+  registerServiceWorker();
+
+  // 9. Initial render
   updateSoundIndicator();
   updateDisplay();
   updateSessionLabel();
-  renderCalendar(currentMonthDate, tasks.getCurrentCalendarDate(), sessions, settings, handleSelectCalendarDate);
+  renderCalendar(
+    currentMonthDate,
+    tasks.getCurrentCalendarDate(),
+    sessions,
+    settings,
+    handleSelectCalendarDate,
+  );
   updateThemeSelector();
 
-  // 9. Document visibility change
+  // 10. Handle PWA shortcut action (?action=focus)
+  if (urlParams.get("action") === "focus" && timerState.status === timer.STATUS.IDLE) {
+    toggleTimer();
+  }
+
+  // 11. Document visibility change
   document.addEventListener("visibilitychange", handleVisibilityChange);
 
-  // 10. Message listener for floating popup window
+  // 12. Message listener for floating popup window
   window.addEventListener("message", handleWindowMessage);
 
   if (window.lucide && typeof window.lucide.createIcons === "function") {
     window.lucide.createIcons();
   }
 });
+
+/**
+ * PWA Service Worker Registration
+ */
+function registerServiceWorker() {
+  if (typeof window === "undefined" || !("serviceWorker" in navigator)) return;
+
+  const isLocalhost = Boolean(
+    window.location.hostname === "localhost" ||
+      window.location.hostname === "[::1]" ||
+      window.location.hostname.match(
+        /^127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}$/,
+      ),
+  );
+
+  if (window.location.protocol === "https:" || isLocalhost) {
+    navigator.serviceWorker
+      .register("./sw.js")
+      .then((registration) => {
+        registration.addEventListener("updatefound", () => {
+          const installingWorker = registration.installing;
+          if (!installingWorker) return;
+
+          installingWorker.addEventListener("statechange", () => {
+            if (
+              installingWorker.state === "installed" &&
+              navigator.serviceWorker.controller
+            ) {
+              showToast("Update available! Click to reload.", 0, "info");
+              const container = document.getElementById("toastContainer");
+              const latest = container?.lastElementChild;
+              if (latest) {
+                latest.style.cursor = "pointer";
+                latest.addEventListener("click", () => {
+                  installingWorker.postMessage({ type: "SKIP_WAITING" });
+                  window.location.reload();
+                });
+              }
+            }
+          });
+        });
+      })
+      .catch((err) => {
+        console.warn("[Tymodoro] Service Worker registration failed:", err);
+      });
+  }
+}
+
+/**
+ * Dynamic meta theme-color update
+ */
+function updateMetaThemeColor(theme) {
+  const themeColors = {
+    dark: "#000000",
+    light: "#ffffff",
+    ocean: "#0f172a",
+    forest: "#0f1419",
+    sunset: "#1a1625",
+    purple: "#1e1b4b",
+    rose: "#1f0f1a",
+    blush: "#faf8f7",
+  };
+  const color = themeColors[theme] || "#000000";
+  let meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.name = "theme-color";
+    document.head.appendChild(meta);
+  }
+  meta.setAttribute("content", color);
+}
 
 /**
  * Tick Source: Web Worker with setInterval fallback
@@ -159,12 +254,37 @@ function onTick() {
     if (tickWorker) tickWorker.postMessage("stop");
     stopFallbackInterval();
 
-    audio.playBeep(settings.soundOn, 1000, 800);
     handleSessionCompleted(tickResult.completedSession);
 
     if (tickResult.autoStarted) {
+      const isBreak =
+        timerState.phase === timer.PHASES.SHORT_BREAK ||
+        timerState.phase === timer.PHASES.LONG_BREAK;
+      const autoStartTitle = isBreak ? "Break started" : "Focus started";
+
+      if (
+        settings.notificationsOn &&
+        "Notification" in window &&
+        Notification.permission === "granted"
+      ) {
+        try {
+          new Notification(autoStartTitle, {
+            body: isBreak ? "Enjoy your well-deserved break!" : "Time to dive back into deep focus!",
+            icon: "icons/icon-192.png",
+            badge: "icons/icon-192.png",
+            tag: "tymodoro-session",
+          });
+        } catch (e) {}
+      }
+
+      announceToScreenReader(autoStartTitle);
+
       if (tickWorker) tickWorker.postMessage("start");
       else startFallbackInterval();
+
+      if (timerState.phase === timer.PHASES.WORK) {
+        acquireWakeLock();
+      }
     }
   }
 
@@ -178,17 +298,56 @@ function onTick() {
 }
 
 function handleSessionCompleted(completedSession) {
+  releaseWakeLock();
+
   if (completedSession) {
     sessions.push(completedSession);
     storage.appendSession(window.localStorage, completedSession, onQuotaError);
-    renderCalendar(currentMonthDate, tasks.getCurrentCalendarDate(), sessions, settings, handleSelectCalendarDate);
+    renderCalendar(
+      currentMonthDate,
+      tasks.getCurrentCalendarDate(),
+      sessions,
+      settings,
+      handleSelectCalendarDate,
+    );
   }
 
-  // Notifications
-  if (settings.notificationsOn && "Notification" in window && Notification.permission === "granted") {
-    const isWork = timerState.phase === timer.PHASES.SHORT_BREAK || timerState.phase === timer.PHASES.LONG_BREAK;
+  // 1. Play Synthesized Alarm
+  audio.playAlarm(
+    settings.alarmSound || "chime",
+    settings.alarmVolume ?? 0.6,
+    settings.alarmRepeat ?? 1,
+    settings.soundOn,
+  );
+
+  // 2. Vibration feedback on mobile devices
+  if (typeof navigator !== "undefined" && "vibrate" in navigator) {
+    try {
+      navigator.vibrate([200, 100, 200]);
+    } catch (e) {}
+  }
+
+  // 3. Tab Title Flash
+  startTitleFlash("🔔 Time's Up!");
+
+  // 4. Screen Reader Announcement
+  announceToScreenReader(
+    timerState.phase === timer.PHASES.WORK
+      ? "Break completed. Ready to focus."
+      : "Focus session completed. Time for a break.",
+  );
+
+  // 5. Desktop Notifications
+  if (
+    settings.notificationsOn &&
+    "Notification" in window &&
+    Notification.permission === "granted"
+  ) {
+    const isWorkCompleted =
+      timerState.phase === timer.PHASES.SHORT_BREAK ||
+      timerState.phase === timer.PHASES.LONG_BREAK;
     const title = "TYMODORO";
-    const body = isWork
+    const body = isWorkCompleted
       ? `Amazing! You completed a ${settings.focusTime}-minute deep focus session!`
       : `Break completed! Ready to focus again?`;
 
@@ -208,11 +367,83 @@ function handleSessionCompleted(completedSession) {
 }
 
 /**
+ * Tab Title Flash on Completion
+ */
+function startTitleFlash(flashText) {
+  stopTitleFlash();
+  let toggle = false;
+  titleFlashInterval = setInterval(() => {
+    document.title = toggle ? flashText : "TYMODORO - Focus Timer";
+    toggle = !toggle;
+  }, 1000);
+
+  const clearFlash = () => {
+    stopTitleFlash();
+    updateDisplay();
+    window.removeEventListener("focus", clearFlash);
+    window.removeEventListener("click", clearFlash);
+  };
+  window.addEventListener("focus", clearFlash);
+  window.addEventListener("click", clearFlash);
+}
+
+function stopTitleFlash() {
+  if (titleFlashInterval) {
+    clearInterval(titleFlashInterval);
+    titleFlashInterval = null;
+  }
+}
+
+/**
+ * Screen Wake Lock API
+ */
+async function acquireWakeLock() {
+  if (
+    settings?.keepAwake &&
+    timerState?.status === timer.STATUS.RUNNING &&
+    timerState?.phase === timer.PHASES.WORK &&
+    typeof navigator !== "undefined" &&
+    "wakeLock" in navigator &&
+    !wakeLock
+  ) {
+    try {
+      wakeLock = await navigator.wakeLock.request("screen");
+      wakeLock.addEventListener("release", () => {
+        wakeLock = null;
+      });
+    } catch (err) {
+      console.warn("[Tymodoro] Screen Wake Lock request failed:", err);
+    }
+  }
+}
+
+function releaseWakeLock() {
+  if (wakeLock) {
+    wakeLock.release().catch(() => {});
+    wakeLock = null;
+  }
+}
+
+/**
+ * Screen Reader Announcement
+ */
+function announceToScreenReader(message) {
+  const el = document.getElementById("timerAnnouncement");
+  if (el) {
+    el.textContent = "";
+    setTimeout(() => {
+      el.textContent = message;
+    }, 50);
+  }
+}
+
+/**
  * Handle tab visibility change
  */
 function handleVisibilityChange() {
   if (!document.hidden && timerState && timerState.status === timer.STATUS.RUNNING) {
     onTick();
+    acquireWakeLock();
   }
 }
 
@@ -221,14 +452,25 @@ function handleVisibilityChange() {
  */
 async function toggleTimer() {
   const now = Date.now();
+  stopTitleFlash();
+
+  // Unlock audio context on user action for iOS/Safari
+  audio.initAudioContext();
 
   if (timerState.status === timer.STATUS.RUNNING) {
+    releaseWakeLock();
     timerState = timer.pause(timerState, now, speed);
     if (tickWorker) tickWorker.postMessage("stop");
     stopFallbackInterval();
+    announceToScreenReader("Timer paused");
   } else {
     // Request notification permission if enabled and default
-    if (settings.notificationsOn && typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") {
+    if (
+      settings.notificationsOn &&
+      typeof window !== "undefined" &&
+      "Notification" in window &&
+      Notification.permission === "default"
+    ) {
       try {
         const perm = await Notification.requestPermission();
         notificationPermission = perm === "granted";
@@ -238,24 +480,41 @@ async function toggleTimer() {
     timerState = timer.start(timerState, now, speed);
     if (tickWorker) tickWorker.postMessage("start");
     else startFallbackInterval();
+
+    if (timerState.phase === timer.PHASES.WORK) {
+      acquireWakeLock();
+    }
+    announceToScreenReader("Timer started");
   }
 
   storage.saveTimerState(window.localStorage, timerState, onQuotaError);
   updateDisplay();
   updateFloatingWindow();
+  updatePipWindow();
+  updateFocusModeDisplay();
 }
 
 function resetTimer() {
+  stopTitleFlash();
+  releaseWakeLock();
+
   if (tickWorker) tickWorker.postMessage("stop");
   stopFallbackInterval();
 
   timerState = timer.reset(timerState, settings);
   storage.saveTimerState(window.localStorage, timerState, onQuotaError);
+  announceToScreenReader("Timer reset");
+
   updateDisplay();
   updateFloatingWindow();
+  updatePipWindow();
+  updateFocusModeDisplay();
 }
 
 function skipSession() {
+  stopTitleFlash();
+  releaseWakeLock();
+
   const now = Date.now();
   const skipResult = timer.skip(timerState, now, settings, speed, false);
 
@@ -270,9 +529,13 @@ function skipSession() {
         const forced = timer.skip(timerState, Date.now(), settings, speed, true);
         timerState = forced.state;
         storage.saveTimerState(window.localStorage, timerState, onQuotaError);
+        announceToScreenReader("Session skipped");
+
         updateDisplay();
         updateSessionLabel();
         updateFloatingWindow();
+        updatePipWindow();
+        updateFocusModeDisplay();
       },
       () => {
         // Cancel skip
@@ -291,9 +554,12 @@ function skipSession() {
     storage.saveTimerState(window.localStorage, timerState, onQuotaError);
   }
 
+  announceToScreenReader("Session skipped");
   updateDisplay();
   updateSessionLabel();
   updateFloatingWindow();
+  updatePipWindow();
+  updateFocusModeDisplay();
 }
 
 /**
@@ -315,7 +581,8 @@ function updateDisplay() {
   // Progress ring
   const progressCircle = document.getElementById("progressCircle");
   if (progressCircle) {
-    const progress = ((timerState.plannedSec - timerState.remainingSec) / timerState.plannedSec) * 100;
+    const progress =
+      ((timerState.plannedSec - timerState.remainingSec) / timerState.plannedSec) * 100;
     const circumference = 2 * Math.PI * 45;
     const offset = circumference - (progress / 100) * circumference;
     progressCircle.style.strokeDashoffset = offset;
@@ -341,19 +608,21 @@ function updateDisplay() {
     }
   }
 
-  // Live document title countdown
-  if (isRunning) {
-    const phaseName =
-      timerState.phase === timer.PHASES.WORK
-        ? "Focus"
-        : timerState.phase === timer.PHASES.SHORT_BREAK
-          ? "Short Break"
-          : "Long Break";
-    document.title = `${displayText} · ${phaseName}`;
-  } else if (timerState.remainingSec < timerState.plannedSec) {
-    document.title = `${displayText} · Paused`;
-  } else {
-    document.title = "TYMODORO - Focus Timer";
+  // Live document title countdown (if title flash is not active)
+  if (!titleFlashInterval) {
+    if (isRunning) {
+      const phaseName =
+        timerState.phase === timer.PHASES.WORK
+          ? "Focus"
+          : timerState.phase === timer.PHASES.SHORT_BREAK
+            ? "Short Break"
+            : "Long Break";
+      document.title = `${displayText} · ${phaseName}`;
+    } else if (timerState.remainingSec < timerState.plannedSec) {
+      document.title = `${displayText} · Paused`;
+    } else {
+      document.title = "TYMODORO - Focus Timer";
+    }
   }
 
   if (window.lucide && typeof window.lucide.createIcons === "function") {
@@ -361,6 +630,8 @@ function updateDisplay() {
   }
 
   updateFloatingWindow();
+  updatePipWindow();
+  updateFocusModeDisplay();
 }
 
 function updateSessionLabel() {
@@ -404,6 +675,7 @@ function toggleSound() {
   settings.soundOn = !settings.soundOn;
   storage.saveSettings(window.localStorage, settings, onQuotaError);
   updateSoundIndicator();
+  announceToScreenReader(settings.soundOn ? "Sound unmuted" : "Sound muted");
 }
 
 /**
@@ -412,21 +684,25 @@ function toggleSound() {
 function setTheme(theme) {
   currentTheme = theme;
   document.body.setAttribute("data-theme", theme);
+  updateMetaThemeColor(theme);
   storage.saveTheme(window.localStorage, theme, onQuotaError);
   updateThemeSelector();
   hideThemeSelector();
   themePreviewActive = null;
   updateFloatingWindow();
+  updatePipWindow();
 }
 
 function previewTheme(theme) {
   themePreviewActive = currentTheme;
   document.body.setAttribute("data-theme", theme);
+  updateMetaThemeColor(theme);
 }
 
 function revertTheme() {
   if (themePreviewActive) {
     document.body.setAttribute("data-theme", themePreviewActive);
+    updateMetaThemeColor(themePreviewActive);
     themePreviewActive = null;
   }
 }
@@ -457,17 +733,35 @@ function hideThemeSelector() {
  */
 function handleSelectCalendarDate(date) {
   tasks.setCalendarDate(date, window.localStorage);
-  renderCalendar(currentMonthDate, tasks.getCurrentCalendarDate(), sessions, settings, handleSelectCalendarDate);
+  renderCalendar(
+    currentMonthDate,
+    tasks.getCurrentCalendarDate(),
+    sessions,
+    settings,
+    handleSelectCalendarDate,
+  );
 }
 
 function prevMonth() {
   currentMonthDate.setMonth(currentMonthDate.getMonth() - 1);
-  renderCalendar(currentMonthDate, tasks.getCurrentCalendarDate(), sessions, settings, handleSelectCalendarDate);
+  renderCalendar(
+    currentMonthDate,
+    tasks.getCurrentCalendarDate(),
+    sessions,
+    settings,
+    handleSelectCalendarDate,
+  );
 }
 
 function nextMonth() {
   currentMonthDate.setMonth(currentMonthDate.getMonth() + 1);
-  renderCalendar(currentMonthDate, tasks.getCurrentCalendarDate(), sessions, settings, handleSelectCalendarDate);
+  renderCalendar(
+    currentMonthDate,
+    tasks.getCurrentCalendarDate(),
+    sessions,
+    settings,
+    handleSelectCalendarDate,
+  );
 }
 
 function toggleCalendar() {
@@ -577,6 +871,91 @@ function closeAllPanels() {
 }
 
 /**
+ * Fullscreen Focus Mode
+ */
+function toggleFocusMode(forceState) {
+  isFocusModeActive = forceState !== undefined ? forceState : !isFocusModeActive;
+  const overlay = document.getElementById("focusModeOverlay");
+  if (!overlay) return;
+
+  if (isFocusModeActive) {
+    overlay.classList.add("active");
+    overlay.setAttribute("aria-hidden", "false");
+    updateFocusModeDisplay();
+    const playBtn = document.getElementById("focusModePlayBtn");
+    if (playBtn) playBtn.focus();
+  } else {
+    overlay.classList.remove("active");
+    overlay.setAttribute("aria-hidden", "true");
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  }
+}
+
+function updateFocusModeDisplay() {
+  const overlay = document.getElementById("focusModeOverlay");
+  if (!overlay || !isFocusModeActive || !timerState) return;
+
+  const minutes = Math.max(0, Math.floor(timerState.remainingSec / 60));
+  const seconds = Math.max(0, timerState.remainingSec % 60);
+  const displayText = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+
+  const timeEl = document.getElementById("focusModeTime");
+  if (timeEl) timeEl.textContent = displayText;
+
+  const phaseEl = document.getElementById("focusModePhase");
+  if (phaseEl) {
+    phaseEl.textContent =
+      timerState.phase === timer.PHASES.WORK
+        ? "Focus Session"
+        : timerState.phase === timer.PHASES.SHORT_BREAK
+          ? "Quick Break"
+          : "Extended Break";
+  }
+
+  const taskEl = document.getElementById("focusModeTask");
+  if (taskEl) {
+    const taskText = tasks.getSelectedTaskText();
+    taskEl.textContent = taskText ? `Focus: ${taskText}` : "";
+  }
+
+  const playIcon = document.getElementById("focusModePlayIcon");
+  if (playIcon) {
+    playIcon.setAttribute(
+      "data-lucide",
+      timerState.status === timer.STATUS.RUNNING ? "pause" : "play",
+    );
+  }
+
+  if (window.lucide && typeof window.lucide.createIcons === "function") {
+    window.lucide.createIcons();
+  }
+}
+
+/**
+ * Shortcuts Modal
+ */
+function showShortcutsModal() {
+  closeAllPanels();
+  const content = `
+    <table class="shortcuts-table" aria-label="Keyboard shortcuts reference">
+      <tbody>
+        <tr><td>Start / Pause</td><td><span class="kbd">Space</span></td></tr>
+        <tr><td>Reset Timer</td><td><span class="kbd">R</span></td></tr>
+        <tr><td>Skip Session</td><td><span class="kbd">S</span></td></tr>
+        <tr><td>Focus Mode</td><td><span class="kbd">F</span></td></tr>
+        <tr><td>Toggle Tasks</td><td><span class="kbd">T</span></td></tr>
+        <tr><td>Toggle Mute</td><td><span class="kbd">M</span></td></tr>
+        <tr><td>Shortcuts Guide</td><td><span class="kbd">?</span></td></tr>
+        <tr><td>Close Dialog / Exit Focus</td><td><span class="kbd">Esc</span></td></tr>
+      </tbody>
+    </table>
+  `;
+  openModal("Keyboard Shortcuts", content);
+}
+
+/**
  * About Modal
  */
 function showAboutModal() {
@@ -606,8 +985,127 @@ function showAboutModal() {
 }
 
 /**
- * Floating popup window & widget
+ * Mini Timer: Document Picture-in-Picture with fallback to popup window
  */
+async function openMiniTimer() {
+  // If browser supports Document Picture-in-Picture (user-gesture required)
+  if (
+    typeof window !== "undefined" &&
+    "documentPictureInPicture" in window &&
+    typeof window.documentPictureInPicture.requestWindow === "function"
+  ) {
+    try {
+      if (pipWindow) {
+        pipWindow.close();
+        pipWindow = null;
+      }
+
+      pipWindow = await window.documentPictureInPicture.requestWindow({
+        width: 340,
+        height: 220,
+      });
+
+      const computedTheme = getComputedStyle(document.body);
+      const pipDoc = pipWindow.document;
+
+      const style = pipDoc.createElement("style");
+      style.textContent = `
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: "Inter", -apple-system, sans-serif; }
+        body {
+          background: ${computedTheme.getPropertyValue("--bg-primary") || "#000000"};
+          color: ${computedTheme.getPropertyValue("--text-primary") || "#ffffff"};
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100vh;
+          text-align: center;
+          padding: 1rem;
+        }
+        .pip-time { font-size: 3.2rem; font-weight: 900; letter-spacing: -0.05em; line-height: 1; }
+        .pip-label { font-size: 0.875rem; color: ${computedTheme.getPropertyValue("--text-secondary") || "#cccccc"}; margin-top: 0.25rem; }
+        .pip-controls { display: flex; gap: 0.75rem; margin-top: 1rem; }
+        .pip-btn {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          border: 1px solid ${computedTheme.getPropertyValue("--border") || "#333333"};
+          background: ${computedTheme.getPropertyValue("--bg-secondary") || "#111111"};
+          color: ${computedTheme.getPropertyValue("--text-primary") || "#ffffff"};
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          font-size: 1.2rem;
+          transition: all 0.2s ease;
+        }
+        .pip-btn:hover { transform: scale(1.08); }
+        .pip-btn.play {
+          background: ${computedTheme.getPropertyValue("--accent") || "#ffffff"};
+          color: ${computedTheme.getPropertyValue("--bg-primary") || "#000000"};
+        }
+      `;
+      pipDoc.head.appendChild(style);
+
+      pipDoc.body.innerHTML = `
+        <div class="pip-time" id="pipTime">25:00</div>
+        <div class="pip-label" id="pipLabel">Focus</div>
+        <div class="pip-controls">
+          <button class="pip-btn play" id="pipPlayBtn" title="Start/Pause">▶</button>
+          <button class="pip-btn" id="pipSkipBtn" title="Skip">⏭</button>
+        </div>
+      `;
+
+      pipDoc.getElementById("pipPlayBtn")?.addEventListener("click", () => {
+        toggleTimer();
+      });
+      pipDoc.getElementById("pipSkipBtn")?.addEventListener("click", () => {
+        skipSession();
+      });
+
+      pipWindow.addEventListener("pagehide", () => {
+        pipWindow = null;
+      });
+
+      updatePipWindow();
+      return;
+    } catch (err) {
+      console.warn("[Tymodoro] Document PiP failed, falling back to popup window:", err);
+    }
+  }
+
+  // Fallback to popup window
+  openFloatingWindow();
+}
+
+function updatePipWindow() {
+  if (!pipWindow || pipWindow.closed || !timerState) return;
+
+  const minutes = Math.max(0, Math.floor(timerState.remainingSec / 60));
+  const seconds = Math.max(0, timerState.remainingSec % 60);
+  const displayText = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+
+  const timeEl = pipWindow.document.getElementById("pipTime");
+  if (timeEl) timeEl.textContent = displayText;
+
+  const labelEl = pipWindow.document.getElementById("pipLabel");
+  if (labelEl) {
+    const taskText = tasks.getSelectedTaskText();
+    const phaseName =
+      timerState.phase === timer.PHASES.WORK
+        ? "Deep Focus"
+        : timerState.phase === timer.PHASES.SHORT_BREAK
+          ? "Quick Break"
+          : "Extended Break";
+    labelEl.textContent = taskText || phaseName;
+  }
+
+  const playBtn = pipWindow.document.getElementById("pipPlayBtn");
+  if (playBtn) {
+    playBtn.textContent = timerState.status === timer.STATUS.RUNNING ? "⏸" : "▶";
+  }
+}
+
 function openFloatingWindow() {
   const width = 380;
   const height = 480;
@@ -734,8 +1232,22 @@ function setupUIEventListeners() {
       updateSoundIndicator();
     });
   });
+  document.getElementById("focusModeBtn")?.addEventListener("click", () => toggleFocusMode(true));
+  document.getElementById("shortcutsBtn")?.addEventListener("click", showShortcutsModal);
   document.getElementById("aboutBtn")?.addEventListener("click", showAboutModal);
-  document.getElementById("floatingWindowBtn")?.addEventListener("click", openFloatingWindow);
+  document.getElementById("floatingWindowBtn")?.addEventListener("click", openMiniTimer);
+
+  // Focus mode overlay buttons
+  document.getElementById("focusModePlayBtn")?.addEventListener("click", toggleTimer);
+  document.getElementById("focusModeSkipBtn")?.addEventListener("click", skipSession);
+  document.getElementById("focusModeExitBtn")?.addEventListener("click", () => toggleFocusMode(false));
+  document.getElementById("focusModeFsBtn")?.addEventListener("click", () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen?.().catch(() => {});
+    } else {
+      document.exitFullscreen?.().catch(() => {});
+    }
+  });
 
   // Calendar navigation
   document.getElementById("prevMonthBtn")?.addEventListener("click", prevMonth);
@@ -761,7 +1273,16 @@ function setupUIEventListeners() {
   document.getElementById("skipBtn")?.addEventListener("click", skipSession);
 
   // Sound indicator
-  document.getElementById("soundIndicator")?.addEventListener("click", toggleSound);
+  const soundIndicator = document.getElementById("soundIndicator");
+  if (soundIndicator) {
+    soundIndicator.addEventListener("click", toggleSound);
+    soundIndicator.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleSound();
+      }
+    });
+  }
 
   // White noise controls
   document.getElementById("regularTab")?.addEventListener("click", () => switchNoiseTab("regular"));
@@ -809,7 +1330,7 @@ function setupUIEventListeners() {
 }
 
 /**
- * Keyboard shortcuts: Space (start/pause), R (reset), Esc (modals)
+ * Keyboard shortcuts: Space (start/pause), R (reset), S (skip), F (focus), T (tasks), M (mute), ? (shortcuts), Esc (exit)
  */
 function setupKeyboardShortcuts() {
   document.addEventListener("keydown", (e) => {
@@ -823,6 +1344,25 @@ function setupKeyboardShortcuts() {
     } else if (e.code === "KeyR") {
       e.preventDefault();
       resetTimer();
+    } else if (e.code === "KeyS") {
+      e.preventDefault();
+      skipSession();
+    } else if (e.code === "KeyF") {
+      e.preventDefault();
+      toggleFocusMode();
+    } else if (e.code === "KeyT") {
+      e.preventDefault();
+      toggleTodoList();
+    } else if (e.code === "KeyM") {
+      e.preventDefault();
+      toggleSound();
+    } else if (e.key === "?" || (e.shiftKey && e.key === "/")) {
+      e.preventDefault();
+      showShortcutsModal();
+    } else if (e.key === "Escape") {
+      if (isFocusModeActive) {
+        toggleFocusMode(false);
+      }
     }
   });
 }

@@ -108,10 +108,10 @@
   --bg-primary: #faf8f7;
   --bg-secondary: #f5f3f1;
   --bg-tertiary: #ede9e6;
-  --text-primary: #3f2f28;
-  --text-secondary: #6b5b52;
-  --text-muted: #9a8680;
-  --accent: #f8a8d8;
+  --text-primary: #2d1e18;
+  --text-secondary: #57463e;
+  --text-muted: #75645c;
+  --accent: #d946ef;
   --border: #e8d8d1;
   --shadow: rgba(63, 47, 40, 0.1);
   --success: #059669;
@@ -1452,6 +1452,56 @@ body {
   line-height: 1.4;
 }
 
+.setting-input-row {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.setting-select {
+  width: 100%;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 0.65rem 1rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.setting-select:focus {
+  border-color: var(--accent);
+}
+
+.setting-preview-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 0.6rem 1rem;
+  border-radius: 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.setting-preview-btn:hover {
+  background: var(--accent);
+  color: var(--bg-primary);
+  border-color: var(--accent);
+}
+
+.setting-preview-btn i {
+  width: 14px;
+  height: 14px;
+}
+
 .apply-btn {
   width: 100%;
   background: var(--accent);
@@ -2000,4 +2050,224 @@ body {
 .toast-visible {
   opacity: 1;
   transform: translateY(0);
+}
+
+/* Screen Reader Accessible Utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Accessible High-Contrast Focus Ring */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 3px !important;
+}
+
+/* Mobile Touch Targets */
+@media (max-width: 768px) {
+  .icon-btn,
+  .ctrl-btn,
+  .calendar-nav-btn,
+  .add-todo-btn,
+  .todo-action-btn,
+  .subtask-delete-btn,
+  .close-noise-btn,
+  .close-theme-btn,
+  .close-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Reduced Motion Preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Fullscreen Focus Mode Overlay */
+.focus-mode-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.focus-mode-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.focus-mode-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 1.5rem;
+  max-width: 90vw;
+}
+
+.focus-mode-phase {
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.focus-mode-task {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  max-width: 600px;
+  word-break: break-word;
+}
+
+.focus-mode-time {
+  font-size: clamp(5rem, 18vw, 14rem);
+  font-weight: 900;
+  font-family: "Inter", sans-serif;
+  letter-spacing: -0.05em;
+  line-height: 1;
+  color: var(--text-primary);
+}
+
+.focus-mode-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 1rem;
+}
+
+.focus-mode-btn {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.focus-mode-btn:hover {
+  background: var(--accent);
+  color: var(--bg-primary);
+  transform: scale(1.08);
+}
+
+.focus-mode-btn.play {
+  width: 76px;
+  height: 76px;
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+.focus-mode-btn.play:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 20px var(--shadow);
+}
+
+.focus-mode-top-bar {
+  position: absolute;
+  top: 1.5rem;
+  right: 1.5rem;
+  display: flex;
+  gap: 0.75rem;
+}
+
+.focus-mode-icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.focus-mode-icon-btn:hover {
+  color: var(--text-primary);
+  border-color: var(--accent);
+}
+
+/* Shortcuts modal table */
+.shortcuts-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 0.5rem;
+}
+
+.shortcuts-table tr {
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcuts-table tr:last-child {
+  border-bottom: none;
+}
+
+.shortcuts-table td {
+  padding: 0.75rem 0.5rem;
+  font-size: 0.875rem;
+}
+
+.shortcuts-table td:first-child {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.shortcuts-table td:last-child {
+  text-align: right;
+}
+
+.kbd {
+  display: inline-block;
+  padding: 0.2rem 0.5rem;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--text-primary);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }

@@ -50,6 +50,151 @@ export function playBeep(soundEnabled = true, frequency = 800, duration = 500) {
   }
 }
 
+/**
+ * Synthesized Alarm Sounds (chime, bell, digital, soft)
+ */
+export function playAlarm(type = "chime", volume = 0.6, repeat = 1, soundEnabled = true) {
+  if (!soundEnabled) return;
+  const ctx = initAudioContext();
+  if (!ctx) return;
+
+  const count = Math.max(1, Math.min(3, repeat || 1));
+  const normalizedVol = Math.max(0, Math.min(1, volume != null ? volume : 0.6));
+
+  for (let i = 0; i < count; i++) {
+    const cycleTime = ctx.currentTime + i * 1.5;
+    renderAlarmCycle(ctx, type, normalizedVol, cycleTime);
+  }
+}
+
+export function previewAlarm(type = "chime", volume = 0.6) {
+  const ctx = initAudioContext();
+  if (!ctx) return;
+  const normalizedVol = Math.max(0, Math.min(1, volume != null ? volume : 0.6));
+  renderAlarmCycle(ctx, type, normalizedVol, ctx.currentTime);
+}
+
+function renderAlarmCycle(ctx, type, volume, start) {
+  switch (type) {
+    case "bell":
+      renderBellAlarm(ctx, volume, start);
+      break;
+    case "digital":
+      renderDigitalAlarm(ctx, volume, start);
+      break;
+    case "soft":
+      renderSoftAlarm(ctx, volume, start);
+      break;
+    case "chime":
+    default:
+      renderChimeAlarm(ctx, volume, start);
+      break;
+  }
+}
+
+function renderChimeAlarm(ctx, volume, start) {
+  const notes = [523.25, 659.25, 783.99, 1046.5];
+  notes.forEach((freq, idx) => {
+    const noteTime = start + idx * 0.15;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq, noteTime);
+
+    gain.gain.setValueAtTime(0.001, noteTime);
+    gain.gain.linearRampToValueAtTime(volume * 0.4, noteTime + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 0.9);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(noteTime);
+    osc.stop(noteTime + 0.95);
+  });
+}
+
+function renderBellAlarm(ctx, volume, start) {
+  const partials = [
+    { freq: 440, gain: volume * 0.5, decay: 1.8 },
+    { freq: 440 * 2.76, gain: volume * 0.25, decay: 1.2 },
+    { freq: 440 * 5.4, gain: volume * 0.1, decay: 0.8 },
+  ];
+
+  partials.forEach((p) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(p.freq, start);
+
+    gain.gain.setValueAtTime(0.001, start);
+    gain.gain.linearRampToValueAtTime(p.gain, start + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + p.decay);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(start);
+    osc.stop(start + p.decay + 0.05);
+  });
+}
+
+function renderDigitalAlarm(ctx, volume, start) {
+  const beeps = [
+    { time: start, freq: 880, dur: 0.12 },
+    { time: start + 0.16, freq: 1760, dur: 0.16 },
+    { time: start + 0.42, freq: 880, dur: 0.12 },
+    { time: start + 0.58, freq: 1760, dur: 0.2 },
+  ];
+
+  beeps.forEach((b) => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(b.freq, b.time);
+
+    gain.gain.setValueAtTime(0.001, b.time);
+    gain.gain.linearRampToValueAtTime(volume * 0.35, b.time + 0.01);
+    gain.gain.setValueAtTime(volume * 0.35, b.time + b.dur - 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, b.time + b.dur);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start(b.time);
+    osc.stop(b.time + b.dur + 0.02);
+  });
+}
+
+function renderSoftAlarm(ctx, volume, start) {
+  const filter = ctx.createBiquadFilter();
+  filter.type = "lowpass";
+  filter.frequency.setValueAtTime(900, start);
+  filter.connect(ctx.destination);
+
+  const chords = [392.0, 493.88, 587.33];
+  chords.forEach((freq, idx) => {
+    const noteTime = start + idx * 0.08;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq, noteTime);
+
+    gain.gain.setValueAtTime(0.001, noteTime);
+    gain.gain.linearRampToValueAtTime(volume * 0.35, noteTime + 0.04);
+    gain.gain.exponentialRampToValueAtTime(0.0001, noteTime + 1.2);
+
+    osc.connect(gain);
+    gain.connect(filter);
+
+    osc.start(noteTime);
+    osc.stop(noteTime + 1.25);
+  });
+}
+
 export function isNoisePlaying() {
   return currentNoise !== null;
 }
