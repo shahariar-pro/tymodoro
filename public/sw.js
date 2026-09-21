@@ -3,7 +3,7 @@
  * Versioned cache with offline precaching and update flow.
  */
 
-const CACHE_VERSION = "tymodoro-v1";
+const CACHE_VERSION = "tymodoro-v2";
 
 const PRECACHE_ASSETS = [
   "./",
@@ -21,6 +21,7 @@ const PRECACHE_ASSETS = [
   "./js/ui/modals.js",
   "./js/ui/settings.js",
   "./js/ui/stats-view.js",
+  "./js/ui/mixer-view.js",
   "./float-timer.html",
   "./manifest.webmanifest",
   "./icons/icon-192.png",

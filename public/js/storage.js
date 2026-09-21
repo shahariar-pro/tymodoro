@@ -32,6 +32,8 @@ export const DEFAULT_SETTINGS = {
   titleCountdown: true,
   dailyGoal: 4,
   weekStart: "mon",
+  pauseAmbientDuringBreaks: false,
+  breakSuggestions: true,
 };
 
 /**
@@ -241,6 +243,24 @@ export function saveTheme(storage, theme, onQuotaError = null) {
 }
 
 /**
+ * Loads mixer state and presets
+ */
+export function loadMixerState(storage) {
+  return safeGet(storage, STORAGE_KEYS.MIXER, {
+    masterVolume: 70,
+    active: {},
+    presets: [],
+  });
+}
+
+/**
+ * Saves mixer state and presets
+ */
+export function saveMixerState(storage, state, onQuotaError = null) {
+  return safeSet(storage, STORAGE_KEYS.MIXER, state, onQuotaError);
+}
+
+/**
  * Exports all Tymodoro data as a JSON string with metadata
  */
 export function exportDataJSON(storage) {
@@ -252,6 +272,7 @@ export function exportDataJSON(storage) {
     sessions: loadSessions(store),
     todos: loadTodos(store),
     theme: loadTheme(store),
+    mixer: loadMixerState(store),
   };
   return JSON.stringify(backup, null, 2);
 }
@@ -403,7 +424,23 @@ export function mergeImportData(storage, importedData, onQuotaError = null) {
     safeSet(store, STORAGE_KEYS.SETTINGS, mergedSettings, onQuotaError);
   }
 
-  // 4. Ensure schema is current
+  // 4. Merge mixer presets if present
+  if (importedData.mixer && typeof importedData.mixer === "object") {
+    const currentMixer = loadMixerState(store);
+    const existingPresets = Array.isArray(currentMixer.presets) ? currentMixer.presets : [];
+    const incomingPresets = Array.isArray(importedData.mixer.presets) ? importedData.mixer.presets : [];
+    const existingNames = new Set(existingPresets.map((p) => p.name));
+    for (const p of incomingPresets) {
+      if (p && p.name && !existingNames.has(p.name)) {
+        existingPresets.push(p);
+        existingNames.add(p.name);
+      }
+    }
+    currentMixer.presets = existingPresets.slice(0, 5);
+    safeSet(store, STORAGE_KEYS.MIXER, currentMixer, onQuotaError);
+  }
+
+  // 5. Ensure schema is current
   store.setItem(STORAGE_KEYS.SCHEMA, CURRENT_SCHEMA_VERSION.toString());
   return true;
 }
@@ -429,6 +466,10 @@ export function replaceImportData(storage, importedData, onQuotaError = null) {
 
   if (importedData.theme && typeof importedData.theme === "string") {
     safeSet(store, STORAGE_KEYS.THEME, importedData.theme, onQuotaError);
+  }
+
+  if (importedData.mixer && typeof importedData.mixer === "object") {
+    safeSet(store, STORAGE_KEYS.MIXER, importedData.mixer, onQuotaError);
   }
 
   store.setItem(STORAGE_KEYS.SCHEMA, CURRENT_SCHEMA_VERSION.toString());

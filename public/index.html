@@ -174,18 +174,29 @@
 
             <section class="timer-section" aria-label="Focus Timer">
                 <div class="session-label" id="sessionLabel">Deep Focus Session</div>
+                <div class="break-suggestion hidden" id="breakSuggestion" role="status" aria-live="polite"></div>
                 
                 <div class="timer-container" role="timer" aria-live="off" aria-label="Focus timer countdown">
                     <svg class="progress-ring" viewBox="0 0 100 100" aria-hidden="true">
-                        <circle class="progress-ring-bg" cx="50" cy="50" r="45"/>
-                        <circle class="progress-ring-fill" cx="50" cy="50" r="45" 
-                                stroke-dasharray="283" stroke-dashoffset="283" id="progressCircle"/>
+                        <!-- Outer: Daily Goal Ring -->
+                        <circle class="goal-ring-bg" cx="50" cy="50" r="47" />
+                        <circle class="goal-ring-fill" id="goalRingFill" cx="50" cy="50" r="47" 
+                                stroke-dasharray="295.3" stroke-dashoffset="295.3" />
+                        <!-- Inner: Session Timer Ring -->
+                        <circle class="progress-ring-bg" cx="50" cy="50" r="41" />
+                        <circle class="progress-ring-fill" cx="50" cy="50" r="41" 
+                                stroke-dasharray="257.6" stroke-dashoffset="257.6" id="progressCircle" />
                     </svg>
                     
                     <div class="timer-display">
                         <div class="timer-time" id="timerDisplay">25:00</div>
                         <div class="timer-status" id="timerStatus">Ready to Start</div>
                     </div>
+                </div>
+
+                <div class="daily-goal-indicator" id="dailyGoalIndicator" title="Daily Goal Progress" aria-label="Daily Goal Progress">
+                    <i data-lucide="target"></i>
+                    <span id="dailyGoalText">0/4 pomodoros today</span>
                 </div>
 
                 <button class="play-btn" id="playBtn" title="Start/Pause timer (Space)" aria-label="Start or Pause Timer">
@@ -209,80 +220,67 @@
             <i data-lucide="bell"></i>
         </div>
 
-        <div class="white-noise-controls" id="whiteNoiseControls" style="display: none;" role="region" aria-label="Ambient Sound Synthesizer">
+        <!-- Ambient Sound Mixer -->
+        <div class="white-noise-controls mixer-panel" id="whiteNoiseControls" style="display: none;" role="region" aria-label="Ambient Sound Mixer">
             <div class="noise-header">
-                <h3>Ambient Sounds</h3>
-                <div class="noise-tabs">
-                    <button class="noise-tab active" id="regularTab">Regular</button>
-                    <button class="noise-tab" id="binauralTab">Binaural</button>
+                <div class="mixer-title-row">
+                    <i data-lucide="sliders" class="mixer-icon" aria-hidden="true"></i>
+                    <h3>Ambient Mixer</h3>
                 </div>
-                <button class="close-noise-btn" id="closeNoiseBtn" title="Close ambient sounds" aria-label="Close ambient sounds">
+                <div class="noise-tabs" role="tablist">
+                    <button class="noise-tab active" id="natureTab" role="tab" aria-selected="true" aria-controls="natureContent">Nature</button>
+                    <button class="noise-tab" id="binauralTab" role="tab" aria-selected="false" aria-controls="binauralContent">Binaural</button>
+                </div>
+                <button class="close-noise-btn" id="closeNoiseBtn" title="Close ambient mixer" aria-label="Close ambient mixer">
                     <i data-lucide="x"></i>
                 </button>
             </div>
-            
-            <div class="noise-content" id="regularContent">
-                <div class="noise-options">
-                    <button class="noise-btn" data-sound="storm" aria-label="Rain and storm ambient sound">
-                        <i data-lucide="cloud-lightning"></i>
-                        <span>Storm</span>
+
+            <!-- Master Volume & Break Behavior -->
+            <div class="mixer-master-bar">
+                <div class="master-vol-group">
+                    <button class="master-mute-btn" id="masterMuteBtn" title="Mute/Unmute mixer" aria-label="Mute or Unmute all ambient sounds">
+                        <i data-lucide="volume-2" id="masterMuteIcon"></i>
                     </button>
-                    <button class="noise-btn" data-sound="forest" aria-label="Forest ambient sound">
-                        <i data-lucide="trees"></i>
-                        <span>Forest</span>
-                    </button>
-                    <button class="noise-btn" data-sound="ocean" aria-label="Ocean waves ambient sound">
-                        <i data-lucide="waves"></i>
-                        <span>Ocean</span>
-                    </button>
-                    <button class="noise-btn" data-sound="coffee" aria-label="Café ambient sound">
-                        <i data-lucide="coffee"></i>
-                        <span>Café</span>
-                    </button>
-                    <button class="noise-btn" data-sound="fire" aria-label="Fireplace ambient sound">
-                        <i data-lucide="flame"></i>
-                        <span>Fireplace</span>
-                    </button>
-                    <button class="noise-btn" data-sound="wind" aria-label="Wind ambient sound">
-                        <i data-lucide="wind"></i>
-                        <span>Wind</span>
+                    <label for="masterNoiseVolume" class="sr-only">Master Ambient Volume</label>
+                    <input type="range" id="masterNoiseVolume" class="master-volume-slider" min="0" max="100" value="70" aria-label="Master ambient volume">
+                    <span class="master-vol-value" id="masterVolValue">70%</span>
+                </div>
+                <label class="mixer-pause-toggle" title="Pause ambient sounds automatically when a break starts">
+                    <input type="checkbox" id="pauseAmbientBreaksCheckbox">
+                    <span>Pause during breaks</span>
+                </label>
+            </div>
+
+            <!-- Presets Bar -->
+            <div class="mixer-presets-section">
+                <div class="presets-header">
+                    <span class="presets-label"><i data-lucide="bookmark"></i> Presets:</span>
+                    <button class="save-preset-btn" id="savePresetBtn" title="Save current mix as custom preset">
+                        <i data-lucide="plus-circle"></i> Save Mix
                     </button>
                 </div>
-            </div>
-            
-            <div class="noise-content hidden" id="binauralContent">
-                <div class="noise-options">
-                    <button class="noise-btn" data-sound="gamma40" aria-label="40Hz Gamma binaural frequency">
-                        <i data-lucide="zap"></i>
-                        <span>40Hz Gamma</span>
-                    </button>
-                    <button class="noise-btn" data-sound="beta20" aria-label="20Hz Beta binaural frequency">
-                        <i data-lucide="brain"></i>
-                        <span>20Hz Beta</span>
-                    </button>
-                    <button class="noise-btn" data-sound="alpha10" aria-label="10Hz Alpha binaural frequency">
-                        <i data-lucide="circle-dot"></i>
-                        <span>10Hz Alpha</span>
-                    </button>
-                    <button class="noise-btn" data-sound="theta6" aria-label="6Hz Theta binaural frequency">
-                        <i data-lucide="moon"></i>
-                        <span>6Hz Theta</span>
-                    </button>
-                    <button class="noise-btn" data-sound="delta3" aria-label="3Hz Delta binaural frequency">
-                        <i data-lucide="bed"></i>
-                        <span>3Hz Delta</span>
-                    </button>
-                    <button class="noise-btn" data-sound="focus15" aria-label="15Hz Focus binaural frequency">
-                        <i data-lucide="target"></i>
-                        <span>15Hz Focus</span>
-                    </button>
+                <div class="presets-chips" id="presetsChips">
+                    <!-- Populated dynamically: Built-in + Saved presets -->
                 </div>
             </div>
-            
-            <div class="volume-control">
-                <i data-lucide="volume-1" aria-hidden="true"></i>
-                <input type="range" id="noiseVolume" min="0" max="100" value="30" aria-label="Ambient noise volume">
-                <i data-lucide="volume-2" aria-hidden="true"></i>
+
+            <!-- Nature Sounds Tab Content -->
+            <div class="noise-content" id="natureContent" role="tabpanel" aria-labelledby="natureTab">
+                <div class="mixer-tiles-grid" id="natureTilesGrid">
+                    <!-- Populated dynamically via mixer-view.js -->
+                </div>
+            </div>
+
+            <!-- Binaural Beats Tab Content -->
+            <div class="noise-content hidden" id="binauralContent" role="tabpanel" aria-labelledby="binauralTab">
+                <div class="binaural-notice">
+                    <i data-lucide="headphones"></i>
+                    <span>Experimental. Use headphones. (Only 1 active at a time)</span>
+                </div>
+                <div class="mixer-tiles-grid" id="binauralTilesGrid">
+                    <!-- Populated dynamically via mixer-view.js -->
+                </div>
             </div>
         </div>
 

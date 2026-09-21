@@ -13,6 +13,12 @@ import { showToast } from "./ui/toasts.js";
 import { initModals, openModal, closeModal, openSkipModal, closeSkipModal } from "./ui/modals.js";
 import { showSettingsModal } from "./ui/settings.js";
 import { showStatsModal, renderCalendar } from "./ui/stats-view.js";
+import {
+  initMixerView,
+  toggleMixerPanel,
+  closeMixerPanel,
+  updateMixerUI,
+} from "./ui/mixer-view.js";
 
 // Dev-only speed scaling from URL param (?speed=N)
 const urlParams = new URLSearchParams(window.location.search);
@@ -47,6 +53,44 @@ let notificationPermission =
 
 function onQuotaError(err, key) {
   showToast("Storage quota exceeded. Some changes could not be saved.", 5000, "error");
+}
+
+const BREAK_SUGGESTIONS = [
+  "💧 Drink a fresh glass of water to stay hydrated.",
+  "👀 Look 20 feet away for 20 seconds to relax your eyes (20-20-20 rule).",
+  "🧘 Stand up and do a gentle neck and shoulder stretch.",
+  "🚶 Take a short stroll around your room or workspace.",
+  "🌬️ Take 3 slow, deep belly breaths to reset your focus.",
+  "🙆 Roll your wrists and stretch your fingers.",
+  "🌿 Step near a window to catch a moment of natural light.",
+  "🍵 Brew a soothing cup of tea or organize your desk.",
+];
+let breakSuggestionIndex = 0;
+
+function updatePhaseAssistance() {
+  const isBreak =
+    timerState?.phase === timer.PHASES.SHORT_BREAK ||
+    timerState?.phase === timer.PHASES.LONG_BREAK;
+
+  const breakEl = document.getElementById("breakSuggestion");
+
+  if (isBreak) {
+    if (settings?.pauseAmbientDuringBreaks) {
+      audio.pauseAmbientForBreak();
+    }
+    if (settings?.breakSuggestions !== false && breakEl) {
+      const tip = BREAK_SUGGESTIONS[breakSuggestionIndex % BREAK_SUGGESTIONS.length];
+      breakEl.textContent = tip;
+      breakEl.classList.remove("hidden");
+    } else if (breakEl) {
+      breakEl.classList.add("hidden");
+    }
+  } else {
+    audio.resumeAmbientAfterBreak();
+    if (breakEl) {
+      breakEl.classList.add("hidden");
+    }
+  }
 }
 
 /**
@@ -97,7 +141,15 @@ document.addEventListener("DOMContentLoaded", () => {
     document.removeEventListener("touchstart", unlockAudio);
   };
   document.addEventListener("click", unlockAudio, { once: true });
-  document.addEventListener("touchstart", unlockAudio, { once: true });
+  // 6b. Initialize Ambient Sound Mixer
+  initMixerView({
+    storage: window.localStorage,
+    settings,
+    onSettingsChange: (s) => {
+      settings = s;
+      updatePhaseAssistance();
+    },
+  });
 
   // 7. Wire UI controls & keyboard shortcuts
   setupUIEventListeners();
@@ -376,6 +428,9 @@ function handleSessionCompleted(completedSession) {
     } catch (e) {}
   }
 
+  breakSuggestionIndex++;
+  updatePhaseAssistance();
+
   storage.saveTimerState(window.localStorage, timerState, onQuotaError);
   updateSessionLabel();
   updateDisplay();
@@ -517,6 +572,7 @@ function resetTimer() {
   stopFallbackInterval();
 
   timerState = timer.reset(timerState, settings);
+  updatePhaseAssistance();
   storage.saveTimerState(window.localStorage, timerState, onQuotaError);
   announceToScreenReader("Timer reset");
 
@@ -543,6 +599,8 @@ function skipSession() {
 
         const forced = timer.skip(timerState, Date.now(), settings, speed, true);
         timerState = forced.state;
+        breakSuggestionIndex++;
+        updatePhaseAssistance();
         storage.saveTimerState(window.localStorage, timerState, onQuotaError);
         announceToScreenReader("Session skipped");
 
@@ -566,6 +624,8 @@ function skipSession() {
   if (skipResult.completedSession) {
     handleSessionCompleted(skipResult.completedSession);
   } else {
+    breakSuggestionIndex++;
+    updatePhaseAssistance();
     storage.saveTimerState(window.localStorage, timerState, onQuotaError);
   }
 
@@ -593,14 +653,36 @@ function updateDisplay() {
   const floatingTimerTime = document.getElementById("floatingTimerTime");
   if (floatingTimerTime) floatingTimerTime.textContent = displayText;
 
-  // Progress ring
+  // Concentric Progress Rings
+  // 1. Inner Session Ring (r = 41, circumference ~ 257.61)
   const progressCircle = document.getElementById("progressCircle");
   if (progressCircle) {
     const progress =
       ((timerState.plannedSec - timerState.remainingSec) / timerState.plannedSec) * 100;
-    const circumference = 2 * Math.PI * 45;
+    const circumference = 2 * Math.PI * 41;
     const offset = circumference - (progress / 100) * circumference;
     progressCircle.style.strokeDashoffset = offset;
+  }
+
+  // 2. Outer Daily Goal Ring (r = 47, circumference ~ 295.31)
+  const goalProgress = getDailyGoalProgress(sessions, settings?.dailyGoal || 4);
+  const goalCircumference = 2 * Math.PI * 47;
+  const goalRatio = Math.min(1, goalProgress.todayCount / goalProgress.goal);
+  const goalOffset = goalCircumference - goalRatio * goalCircumference;
+  const goalRingFill = document.getElementById("goalRingFill");
+  if (goalRingFill) {
+    goalRingFill.style.strokeDashoffset = `${goalOffset}px`;
+    goalRingFill.classList.toggle("goal-achieved", goalProgress.todayCount >= goalProgress.goal);
+  }
+
+  const goalIndicator = document.getElementById("dailyGoalIndicator");
+  if (goalIndicator) {
+    goalIndicator.classList.toggle("achieved", goalProgress.todayCount >= goalProgress.goal);
+  }
+
+  const goalText = document.getElementById("dailyGoalText");
+  if (goalText) {
+    goalText.textContent = `${goalProgress.todayCount}/${goalProgress.goal} pomodoros today`;
   }
 
   // Play/Pause icon
@@ -828,59 +910,23 @@ function toggleTodoList() {
 }
 
 /**
- * White noise controls
+ * Ambient Sound Mixer controls
  */
 function toggleWhiteNoisePanel() {
   const panel = document.getElementById("whiteNoiseControls");
   if (!panel) return;
   const isVisible = panel.style.display === "block";
   if (isVisible) {
-    panel.style.display = "none";
+    closeMixerPanel();
   } else {
     closeAllPanels();
-    panel.style.display = "block";
-  }
-}
-
-function switchNoiseTab(tabName) {
-  document.querySelectorAll(".noise-tab").forEach((btn) => {
-    btn.classList.toggle("active", btn.id === `${tabName}Tab`);
-  });
-  document.querySelectorAll(".noise-content").forEach((content) => {
-    content.classList.toggle("hidden", content.id !== `${tabName}Content`);
-  });
-
-  audio.stopNoise();
-  updateNoiseUI();
-}
-
-function selectNoise(type) {
-  const currentPlaying = audio.getCurrentNoiseType();
-  if (currentPlaying === type) {
-    audio.stopNoise();
-  } else {
-    audio.startNoise(type);
-  }
-  updateNoiseUI();
-}
-
-function updateNoiseUI() {
-  const current = audio.getCurrentNoiseType();
-  const whiteNoiseBtn = document.getElementById("whiteNoiseBtn");
-
-  document.querySelectorAll(".noise-btn").forEach((btn) => {
-    btn.classList.toggle("active", btn.dataset.sound === current);
-  });
-
-  if (whiteNoiseBtn) {
-    whiteNoiseBtn.classList.toggle("active", Boolean(current));
+    toggleMixerPanel();
   }
 }
 
 function closeAllPanels() {
   hideThemeSelector();
-  const noisePanel = document.getElementById("whiteNoiseControls");
-  if (noisePanel) noisePanel.style.display = "none";
+  closeMixerPanel();
   closeModal();
   closeSkipModal();
 }
@@ -1300,25 +1346,6 @@ function setupUIEventListeners() {
         e.preventDefault();
         toggleSound();
       }
-    });
-  }
-
-  // White noise controls
-  document.getElementById("regularTab")?.addEventListener("click", () => switchNoiseTab("regular"));
-  document.getElementById("binauralTab")?.addEventListener("click", () => switchNoiseTab("binaural"));
-  document.getElementById("closeNoiseBtn")?.addEventListener("click", toggleWhiteNoisePanel);
-
-  document.querySelectorAll(".noise-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      selectNoise(btn.dataset.sound);
-    });
-  });
-
-  const noiseVolume = document.getElementById("noiseVolume");
-  if (noiseVolume) {
-    noiseVolume.addEventListener("input", (e) => {
-      audio.setNoiseVolume(Number(e.target.value));
-      updateNoiseUI();
     });
   }
 

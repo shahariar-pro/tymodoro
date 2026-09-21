@@ -125,6 +125,22 @@ export function showSettingsModal(settings, storage, onApplyCallback) {
           </label>
         </div>
 
+        <div class="setting-toggle-row">
+          <label class="setting-toggle-label" for="pauseAmbientToggle">Pause Ambient Audio During Breaks</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="pauseAmbientToggle" ${currentSettings.pauseAmbientDuringBreaks ? "checked" : ""}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-toggle-row">
+          <label class="setting-toggle-label" for="breakSuggestionsToggle">Show Break Suggestions & Tips</label>
+          <label class="toggle-switch">
+            <input type="checkbox" id="breakSuggestionsToggle" ${currentSettings.breakSuggestions !== false ? "checked" : ""}>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
         <div class="setting-group">
           <label class="setting-label" for="weekStartSelect">First Day of Week</label>
           <select id="weekStartSelect" class="setting-select" aria-label="First day of week">
@@ -314,6 +330,16 @@ export function showSettingsModal(settings, storage, onApplyCallback) {
   // Keep awake
   document.getElementById("keepAwakeToggle")?.addEventListener("change", (e) => {
     currentSettings.keepAwake = e.target.checked;
+  });
+
+  // Pause ambient during breaks
+  document.getElementById("pauseAmbientToggle")?.addEventListener("change", (e) => {
+    currentSettings.pauseAmbientDuringBreaks = e.target.checked;
+  });
+
+  // Break suggestions
+  document.getElementById("breakSuggestionsToggle")?.addEventListener("change", (e) => {
+    currentSettings.breakSuggestions = e.target.checked;
   });
 
   // Week start
